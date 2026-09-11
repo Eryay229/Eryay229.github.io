@@ -92,7 +92,9 @@
     display:flex; align-items:center; gap:4px;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     max-width:46%; flex-shrink:1;
+    cursor:pointer; user-select:none; transition:transform .12s ease;
   }
+  #scoreBadge:active{ transform:scale(.96); }
   #scoreBadge span.name{
     color:var(--ink-soft); font-weight:600; font-size:.7rem;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
@@ -304,7 +306,7 @@
   <div class="hill"></div>
 
   <div id="topBar">
-    <div id="scoreBadge">⭐ <span id="scorePuan">0</span> <span class="name" id="scoreName"></span></div>
+    <div id="scoreBadge" title="İsmini değiştirmek için tıkla">⭐ <span id="scorePuan">0</span> <span class="name" id="scoreName"></span></div>
     <button id="leaderBtn">🏆 Liderlik</button>
   </div>
 
@@ -345,8 +347,8 @@
 <div id="nameModal" class="modalOverlay hidden">
   <div class="modalCard">
     <div style="font-size:2.4rem;">🌱</div>
-    <h2>Bahçeye hoş geldin!</h2>
-    <p>Kuzenler bahçesine katılmak için ismini yaz.</p>
+    <h2 id="nameModalTitle">Bahçeye hoş geldin!</h2>
+    <p id="nameModalDesc">Kuzenler bahçesine katılmak için ismini yaz.</p>
     <input id="nameInput" type="text" maxlength="20" placeholder="İsmin" autocomplete="off">
     <button id="nameSubmit" class="primaryBtn">Bahçeye Gir</button>
   </div>
@@ -764,7 +766,22 @@ function guncelleGorunum(){
 /* =========================================================
    İSİM MODALI
    ========================================================= */
-function modaliGoster(){ el("nameModal").classList.remove("hidden"); el("nameInput").focus(); }
+function modaliGoster(duzenlemeMi){
+  if(duzenlemeMi && userName){
+    el("nameModalTitle").textContent = "İsmini Değiştir";
+    el("nameModalDesc").textContent = "Yeni ismini yaz ve kaydet.";
+    el("nameInput").value = userName;
+    el("nameSubmit").textContent = "Kaydet";
+  } else {
+    el("nameModalTitle").textContent = "Bahçeye hoş geldin!";
+    el("nameModalDesc").textContent = "Kuzenler bahçesine katılmak için ismini yaz.";
+    el("nameInput").value = "";
+    el("nameSubmit").textContent = "Bahçeye Gir";
+  }
+  el("nameModal").classList.remove("hidden");
+  el("nameInput").focus();
+  el("nameInput").select();
+}
 function modaliGizle(){ el("nameModal").classList.add("hidden"); }
 function isimKaydet(){
   const val = el("nameInput").value.trim();
@@ -773,6 +790,20 @@ function isimKaydet(){
   localStorage.setItem(NAME_KEY, userName);
   modaliGizle();
   el("scoreName").textContent = "(" + userName + ")";
+
+  if(localMode){
+    const kayitliPuan = JSON.parse(localStorage.getItem("kuzenBahcesiYerelPuan") || "null") || {puan:0, sulamaSayisi:0};
+    kayitliPuan.isim = userName;
+    localStorage.setItem("kuzenBahcesiYerelPuan", JSON.stringify(kayitliPuan));
+  } else if(usersRef){
+    // kimlik id'si Firebase'de yoksa oluşturulur, varsa sadece ismi güncellenir
+    usersRef.child(userId).transaction((cur) => {
+      if(!cur) cur = { isim: userName, puan: 0, sulamaSayisi: 0 };
+      cur.isim = userName;
+      return cur;
+    });
+  }
+
   guncelleGorunum();
 }
 
@@ -825,6 +856,7 @@ el("nameSubmit").addEventListener("click", isimKaydet);
 el("nameInput").addEventListener("keydown", (e)=>{ if(e.key === "Enter") isimKaydet(); });
 el("leaderBtn").addEventListener("click", liderlikGoster);
 el("closeLeaderBtn").addEventListener("click", liderlikGizle);
+el("scoreBadge").addEventListener("click", () => modaliGoster(true));
 
 if(!userName){ modaliGoster(); } else { el("scoreName").textContent = "(" + userName + ")"; }
 
