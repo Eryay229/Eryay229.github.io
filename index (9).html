@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Kuzenler Bahçesi 🌱</title>
+
+<!--
+  ========================= KURULUM NOTU =========================
+  Bu sayfanın herkeste AYNI ANDA çalışması (canlı senkronizasyon,
+  puanlar, liderlik tablosu) için Firebase Realtime Database kullanılıyor.
+
+  1) https://console.firebase.google.com adresinden ücretsiz bir proje aç.
+  2) Sol menüden "Build > Realtime Database" -> "Create Database".
+  3) Proje ayarları (⚙️ > Project settings) sayfasındaki "Web app" bilgilerini
+     aşağıdaki firebaseConfig içine yapıştır.
+  4) Realtime Database > Rules sekmesinden okuma/yazmayı aç:
+     { "rules": { ".read": true, ".write": true } }
+     (Küçük bir aile/kuzen eğlencesi olduğu için bu yeterli.)
+
+  Config doldurulmazsa sayfa "yerel mod"da çalışır: bitki ve puanlar sadece
+  bu tarayıcıda yaşar, liderlik tablosu ve senkronizasyon çalışmaz.
+  ==================================================================
+-->
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito+Sans:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;1,6..12,600&family=Press+Start+2P&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --sky-top:#eaf6f0;
+    --sky-bottom:#dcecfb;
+    --leaf-deep:#2f6b45;
+    --leaf:#3f8a5b;
+    --leaf-light:#8fc79a;
+    --clay:#a8622f;
+    --clay-dark:#7c4620;
+    --water:#2f86c9;
+    --amber:#dd9c28;
+    --danger:#c0392b;
+    --ink:#20302a;
+    --ink-soft:#4d6058;
+    --paper:#fbfaf6;
+    --gold:#c9962f;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{
+    height:100%;
+    margin:0;
+    overflow:hidden;
+    background:linear-gradient(180deg, var(--sky-top) 0%, var(--sky-bottom) 100%);
+    font-family:'Nunito Sans', sans-serif;
+    color:var(--ink);
+    -webkit-tap-highlight-color:transparent;
+  }
+  h1,h2,.display{ font-family:'Fredoka', sans-serif; }
+
+  #stage{
+    height:100dvh;
+    width:100vw;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:space-between;
+    padding: clamp(8px,2.6vh,22px) clamp(14px,4vw,32px);
+    position:relative;
+  }
+
+  .hill{
+    position:absolute; bottom:0; left:0; right:0; height:22vh;
+    background:var(--leaf-light);
+    border-radius:50% 50% 0 0 / 100% 100% 0 0;
+    transform:scale(1.6,1); opacity:.5; z-index:0;
+  }
+  .hill.back{ height:16vh; background:#c9e6cf; transform:scale(1.9,1) translateY(6%); opacity:.55; }
+
+  /* --- üst bar: puan + liderlik, artık normal akışta, başlıkla asla çakışmaz --- */
+  #topBar{
+    width:100%; max-width:420px;
+    display:flex; align-items:center; justify-content:space-between;
+    gap:8px; z-index:20; margin-bottom:2px;
+  }
+  #scoreBadge{
+    background:rgba(255,255,255,.85); backdrop-filter:blur(4px);
+    border-radius:999px; padding:6px 10px;
+    font-family:'Fredoka',sans-serif; font-weight:600; font-size:.78rem;
+    color:var(--gold); box-shadow:0 3px 8px rgba(30,60,40,.15);
+    display:flex; align-items:center; gap:4px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    max-width:46%; flex-shrink:1;
+  }
+  #scoreBadge span.name{
+    color:var(--ink-soft); font-weight:600; font-size:.7rem;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+
+  /* --- üst bar: liderlik butonu --- */
+  #leaderBtn{
+    background:rgba(255,255,255,.85); backdrop-filter:blur(4px);
+    border:none; border-radius:999px; padding:7px 11px;
+    font-family:'Fredoka',sans-serif; font-weight:600; font-size:.76rem;
+    color:var(--ink); box-shadow:0 3px 8px rgba(30,60,40,.15);
+    cursor:pointer; white-space:nowrap; flex-shrink:0;
+  }
+
+  header{ text-align:center; z-index:2; margin-top:2px; }
+  header h1{
+    font-size:clamp(1.2rem,4.2vw,1.7rem); font-weight:600;
+    color:var(--leaf-deep); margin:0 0 2px 0;
+  }
+  header p{ margin:0; font-size:clamp(.7rem,2.2vw,.85rem); color:var(--ink-soft); }
+
+  #aliveDays{
+    display:inline-block; margin-top:6px;
+    background:rgba(255,255,255,.7); border-radius:999px;
+    padding:4px 12px; font-size:.75rem; font-weight:700; color:var(--leaf-deep);
+  }
+
+  #localWarning{
+    display:none; background:#fff4dd; border:1.5px solid var(--amber);
+    color:#7a5312; font-size:.72rem; padding:5px 12px; border-radius:14px;
+    max-width:92vw; text-align:center; z-index:3; margin-top:4px;
+  }
+
+  #plantArea{
+    flex:1; width:100%; max-width:420px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    position:relative; z-index:2; min-height:0;
+  }
+
+  #plantWrap{
+    position:relative; display:flex; flex-direction:column;
+    align-items:center; justify-content:flex-end;
+    height:min(34vh,270px);
+  }
+
+  /* --- konuşma balonu (Undertale tarzı) --- */
+  #speechBubble{
+    display:none;
+    position:absolute;
+    bottom:100%;
+    margin-bottom:14px;
+    max-width:min(78vw,300px);
+    background:var(--paper);
+    border:3px solid var(--ink);
+    border-radius:10px;
+    padding:10px 12px;
+    font-family:'Press Start 2P', monospace;
+    font-size:.6rem;
+    line-height:1.6;
+    color:var(--ink);
+    box-shadow:0 6px 0 rgba(30,40,35,.15);
+    z-index:6;
+  }
+  #speechBubble::after{
+    content:'';
+    position:absolute; bottom:-13px; left:32px;
+    width:0; height:0;
+    border-left:9px solid transparent;
+    border-right:9px solid transparent;
+    border-top:13px solid var(--ink);
+  }
+  #speechBubble::before{
+    content:'';
+    position:absolute; bottom:-9px; left:34px;
+    width:0; height:0;
+    border-left:7px solid transparent;
+    border-right:7px solid transparent;
+    border-top:9px solid var(--paper);
+    z-index:1;
+  }
+
+  #plantEmoji{
+    font-size:clamp(3.4rem,15vh,7rem); line-height:1;
+    filter:drop-shadow(0 10px 14px rgba(30,60,40,.18));
+    transition:transform .4s ease, filter .5s ease;
+    transform-origin:bottom center;
+  }
+  #plantEmoji.healthy{ animation: sway 4.5s ease-in-out infinite; }
+  #plantEmoji.thirsty{ animation: sway-slow 6s ease-in-out infinite; filter:drop-shadow(0 10px 14px rgba(30,60,40,.18)) saturate(.75) brightness(.95); }
+  #plantEmoji.critical{ animation: wilt-shake 3.2s ease-in-out infinite; filter:drop-shadow(0 10px 14px rgba(30,60,40,.18)) saturate(.5) brightness(.85); }
+  #plantEmoji.dead{ animation:none; filter:grayscale(1) brightness(.75); transform:rotate(-6deg); }
+
+  @keyframes sway{ 0%,100%{transform:rotate(-3deg);} 50%{transform:rotate(3deg);} }
+  @keyframes sway-slow{ 0%,100%{transform:rotate(-2deg);} 50%{transform:rotate(2deg);} }
+  @keyframes wilt-shake{ 0%,100%{transform:rotate(-1deg);} 50%{transform:rotate(1deg) translateY(2px);} }
+
+  .pot{
+    width:clamp(74px,19vh,116px); height:clamp(44px,11vh,66px);
+    background:linear-gradient(160deg, var(--clay) 0%, var(--clay-dark) 100%);
+    border-radius:8px 8px 22px 22px / 8px 8px 30px 30px;
+    margin-top:-6px; position:relative;
+    box-shadow:inset 0 -6px 10px rgba(0,0,0,.18), 0 6px 10px rgba(30,20,10,.15);
+  }
+  .pot::before{
+    content:''; position:absolute; top:-8px; left:-6%; width:112%; height:14px;
+    background:var(--clay); border-radius:6px;
+  }
+
+  #waterBarOuter{
+    width:100%; max-width:300px; height:18px;
+    background:#e4ede6; border:2px solid #ffffff; border-radius:999px;
+    box-shadow:0 2px 6px rgba(30,60,40,.12), inset 0 1px 2px rgba(0,0,0,.06);
+    overflow:hidden; margin-top:12px;
+  }
+  #waterBarFill{
+    height:100%; width:100%; border-radius:999px;
+    background:linear-gradient(90deg, var(--water) 0%, #4fb0e0 100%);
+    transition:width .6s ease, background .6s ease;
+  }
+  #waterPct{ font-size:.76rem; color:var(--ink-soft); margin-top:4px; font-weight:600; }
+
+  #statusLine{ margin-top:10px; text-align:center; min-height:2.2em; }
+  #statusLine .title{ font-family:'Fredoka',sans-serif; font-size:clamp(1rem,3.4vw,1.25rem); font-weight:600; }
+  #statusLine .sub{ font-size:.76rem; color:var(--ink-soft); margin-top:2px; }
+
+  #infoCard{
+    width:100%; max-width:340px;
+    background:rgba(255,255,255,.72); backdrop-filter:blur(6px);
+    border-radius:18px; padding:8px 16px; margin-top:8px; z-index:2; font-size:.78rem;
+  }
+  #infoCard .row{ display:flex; justify-content:space-between; padding:3px 0; }
+  #infoCard .row + .row{ border-top:1px dashed rgba(60,80,70,.18); }
+  #infoCard .label{ color:var(--ink-soft); }
+  #infoCard .value{ font-weight:700; color:var(--leaf-deep); text-align:right; }
+
+  #waterBtn{
+    font-family:'Fredoka',sans-serif; font-weight:600; font-size:clamp(.95rem,3.4vw,1.1rem);
+    color:#fff; background:linear-gradient(160deg, var(--water) 0%, #1f6fa8 100%);
+    border:none; padding:13px 30px; border-radius:999px;
+    box-shadow:0 6px 0 #17547e, 0 10px 18px rgba(20,60,90,.25);
+    cursor:pointer; margin: clamp(8px,2vh,14px) 0 2px 0;
+    transition:transform .12s ease, box-shadow .12s ease;
+    z-index:2; user-select:none; touch-action:manipulation;
+  }
+  #waterBtn:active:not(:disabled){ transform:translateY(5px); box-shadow:0 1px 0 #17547e, 0 4px 10px rgba(20,60,90,.2); }
+  #waterBtn:disabled{
+    opacity:.6; cursor:default;
+    box-shadow:0 6px 0 #b9c3c0, 0 10px 18px rgba(20,60,90,.12);
+    background:linear-gradient(160deg,#9fb3ac,#7c8f88);
+  }
+  #waterBtn.deadBtn:disabled{ background:linear-gradient(160deg,#8a8a8a,#5c5c5c); box-shadow:0 6px 0 #4a4a4a, 0 10px 18px rgba(0,0,0,.2); }
+
+  footer{ font-size:.7rem; color:var(--ink-soft); opacity:.8; z-index:2; text-align:center; }
+
+  .droplet{
+    position:absolute; font-size:1.15rem; pointer-events:none;
+    animation: drop-fall 0.9s ease-in forwards; z-index:5;
+  }
+  @keyframes drop-fall{
+    0%{ transform:translateY(-10px) scale(.6); opacity:0; }
+    20%{ opacity:1; }
+    100%{ transform:translateY(70px) scale(1); opacity:0; }
+  }
+
+  /* --- modallar (isim + liderlik) --- */
+  .modalOverlay{
+    position:fixed; inset:0; background:rgba(20,35,28,.55);
+    display:flex; align-items:center; justify-content:center; z-index:50; padding:20px;
+  }
+  .modalOverlay.hidden{ display:none; }
+  .modalCard{
+    background:var(--paper); border-radius:22px; padding:22px 22px;
+    max-width:340px; width:100%; text-align:center;
+    box-shadow:0 20px 40px rgba(20,30,25,.25);
+    max-height:80vh; overflow-y:auto;
+  }
+  .modalCard h2{ font-size:1.2rem; margin:6px 0 4px 0; color:var(--leaf-deep); }
+  .modalCard p{ font-size:.82rem; color:var(--ink-soft); margin:0 0 14px 0; }
+  #nameInput{
+    width:100%; padding:11px 14px; border-radius:12px; border:2px solid #d7e4dc;
+    font-size:1rem; font-family:inherit; outline:none; margin-bottom:12px;
+  }
+  #nameInput:focus{ border-color:var(--leaf); }
+  .primaryBtn{
+    width:100%; font-family:'Fredoka',sans-serif; font-weight:600; font-size:1rem; color:#fff;
+    background:linear-gradient(160deg, var(--leaf) 0%, var(--leaf-deep) 100%);
+    border:none; padding:12px; border-radius:12px; cursor:pointer;
+  }
+  #closeLeaderBtn{ margin-top:14px; background:#e7eeea; color:var(--ink); }
+
+  #leaderList{ text-align:left; }
+  .leaderRow{
+    display:flex; align-items:center; gap:8px;
+    padding:7px 6px; border-radius:10px; font-size:.85rem;
+  }
+  .leaderRow:nth-child(odd){ background:rgba(63,138,91,.07); }
+  .leaderRow .rank{ font-weight:700; color:var(--leaf-deep); width:22px; text-align:center; }
+  .leaderRow .lname{ flex:1; font-weight:600; }
+  .leaderRow .lpuan{ font-weight:700; color:var(--gold); }
+  .leaderRow .lsayi{ font-size:.7rem; color:var(--ink-soft); margin-left:4px; }
+
+  ::selection{ background:var(--leaf-light); }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <div class="hill back"></div>
+  <div class="hill"></div>
+
+  <div id="topBar">
+    <div id="scoreBadge">⭐ <span id="scorePuan">0</span> <span class="name" id="scoreName"></span></div>
+    <button id="leaderBtn">🏆 Liderlik</button>
+  </div>
+
+  <header>
+    <h1>Kuzenler Bahçesi 🌱</h1>
+    <p>Hep birlikte bir bitkiyi hayatta tutuyoruz</p>
+    <div id="aliveDays">🌞 Hayatta: 0 gün</div>
+    <div id="localWarning">⚠️ Firebase bağlantısı ayarlanmadı — bu bitki ve puanlar sadece bu tarayıcıda yaşıyor.</div>
+  </header>
+
+  <div id="plantArea">
+    <div id="plantWrap">
+      <div id="speechBubble"></div>
+      <div id="plantEmoji" class="healthy">🌸</div>
+      <div class="pot"></div>
+    </div>
+
+    <div id="waterBarOuter"><div id="waterBarFill"></div></div>
+    <div id="waterPct">%100 su seviyesi</div>
+
+    <div id="statusLine">
+      <div class="title" id="statusTitle">Bitki mis gibi 🌿</div>
+      <div class="sub" id="statusSub">Su seviyesi yeterli</div>
+    </div>
+  </div>
+
+  <div id="infoCard">
+    <div class="row"><span class="label">En son sulayan</span><span class="value" id="lastWatererVal">—</span></div>
+    <div class="row"><span class="label">Sulama zamanı</span><span class="value" id="lastTimeVal">—</span></div>
+    <div class="row"><span class="label">Toplam sulama</span><span class="value" id="totalVal">0</span></div>
+  </div>
+
+  <button id="waterBtn">Bitkiyi Sula 💧</button>
+  <footer id="youAre">Sen: —</footer>
+</div>
+
+<!-- isim giriş modalı -->
+<div id="nameModal" class="modalOverlay hidden">
+  <div class="modalCard">
+    <div style="font-size:2.4rem;">🌱</div>
+    <h2>Bahçeye hoş geldin!</h2>
+    <p>Kuzenler bahçesine katılmak için ismini yaz.</p>
+    <input id="nameInput" type="text" maxlength="20" placeholder="İsmin" autocomplete="off">
+    <button id="nameSubmit" class="primaryBtn">Bahçeye Gir</button>
+  </div>
+</div>
+
+<!-- liderlik tahtası modalı -->
+<div id="leaderModal" class="modalOverlay hidden">
+  <div class="modalCard">
+    <div style="font-size:2.2rem;">🏆</div>
+    <h2>Liderlik Tablosu</h2>
+    <p id="leaderNote">En çok sulama yapan ilk 10 kuzen</p>
+    <div id="leaderList"></div>
+    <button id="closeLeaderBtn" class="primaryBtn">Kapat</button>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   AYARLAR
+   ========================================================= */
+const FULL_WATER_MS = 24 * 60 * 60 * 1000; // su seviyesinin %100'den %0'a inme süresi
+const MAX_WATER_YUZDE = 95;                 // bu yüzde ve üzerinde sulama kilitli
+const PUAN_PER_SULAMA = 10;                 // her sulamada kazanılan puan
+const NAME_KEY = "kuzenBahcesiIsim";
+const ID_KEY = "kuzenBahcesiKullaniciId";
+
+// Buraya kendi Firebase bilgilerini yapıştır (dosyanın en üstündeki kurulum notuna bak)
+const firebaseConfig = {
+  apiKey: "AIzaSyDoOORqIioevuH1IFtX7TM1Ynwd355T7Gw",
+  authDomain: "kuzenler-bahcesi.firebaseapp.com",
+  databaseURL: "https://kuzenler-bahcesi-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "kuzenler-bahcesi",
+  storageBucket: "kuzenler-bahcesi.firebasestorage.app",
+  messagingSenderId: "551894005280",
+  appId: "1:551894005280:web:11825031b3af64627dee45"
+};
+
+// Undertale tarzı 50 sulama diyaloğu
+const DIYALOGLAR = [
+"Ohhh! Serinledim valla, beynime su yürüdü.",
+"Bunu hak etmiştim, sağ ol gardaşım!",
+"Yapraklarım kurumuştu, adamsın!",
+"Güneşin altında kavruluyordum, Hızır gibi yetiştin.",
+"Tam zamanında! Birkaç dakika daha gelmeseydin yapraklarımı teslim ediyordum.",
+"Oh be! Dünya varmış, köklerim bayram etti.",
+"İşte aradığım hizmet! 5 yıldız veriyorum bu sulamaya.",
+"Kana kana içtim, eyvallah!",
+"Gluk gluk gluk... Ahh, kendime geldim!",
+"Şu an hücresel düzeyde bir mutluluk yaşıyorum.",
+"Sonunda ya! Unuttunuz sandım beni bu grupta.",
+"Çok şükür biri beni hatırladı. Grubun neşesiyim ben burada!",
+"Lütfettiniz efendim, gözümüz yollarda kaldı.",
+"İki yudum su verdin diye hemen havalara girme, daha gübrem eksik!",
+"Biraz daha gecikseydin gruptan ayrılıyordum.",
+"Hani aileydik? Saatlerdir su bekliyorum burada!",
+"Diğer kuzenler nerede? Yine iş sana mı kaldı?",
+"Sağ ol ama suyu azıcık soğuk verseydin keşke, şok geçirdim.",
+"Bu su bana 2 saat yeter, sonra yine beklerim.",
+"Nihayet... Bir an beni tamamen unuttunuz sandım.",
+"Köklerime kadar hissettim! Fotosentezin dibine vuracağım şimdi.",
+"Suyu içtim, aniden Türkçe pop söyleyesim geldi.",
+"Teşekkürler! Karşılığında sana bolca oksijen üreteceğim.",
+"Görüyorsunuz, anlatmaya gerek yok... Şırıl şırıl!",
+"Köklerim şahlandı, tutabilene aşk olsun!",
+"Bu su mineralli miydi? Kendimi biraz fazla dinç hissediyorum.",
+"Yaprağımın teki yeşerdi bile, bak bakayım!",
+"Su değil mübarek, yaşam iksiri!",
+"Şimdi gidin ve gruptakilere kralın hâlâ ayakta olduğunu söyleyin.",
+"Oksijen fabrikası yeniden üretime başladı!",
+"Geç olsun güç olmasın dedik de, bu kadar da geç olunmaz ki hemşerim.",
+"Kral geldi, suyumu verdi, gitti. Racon budur.",
+"Gruptaki diğer tembellere ders olsun bu sulama.",
+"Aferin, görevini yaptığına göre gidebilirsin.",
+"Beni sulamayan kuzenlere kırgınım, bunu da böyle bilin.",
+"İşte gerçek dostluk! Diğerleri sadece grupta boş yapsın.",
+"Suyu verdin, borcumu oksijenle ödeyeceğim.",
+"Beni yaşatan adam gibi adam/kadın geldin işte!",
+"Bitki dediysek de taş değiliz yani, susuyoruz!",
+"Bakış açım değişti, şu an dünyayı daha yeşil görüyorum.",
+"İMDAT! Boğuluyorum... Şaka şaka, çok iyi geldi.",
+"Bir an kurudum sanıp miras kavgasına başlayacaktınız değil mi?",
+"Son anda gelen o muhteşem sulama hamlesi!",
+"Gözlerim yaşardı... Yok yok, yaprağıma su sıçramış.",
+"Hızlı suladın, boğazıma kaçtı!",
+"Bu suyu içmeseydim kaktüse dönüşecektim.",
+"Şu an tamamen şarj oldum, yeşil ışığım yanıyor.",
+"Grubun en vizyoner üyesi sensin, net.",
+"Köklerimden gelen bir ses 'daha fazla su' diyor ama neyse.",
+"Hayat öpücüğü gibi geldi. Teşekkürler patron!"
+];
+
+/* =========================================================
+   DURUM
+   ========================================================= */
+let plantRef = null, usersRef = null, leaderQuery = null;
+let localMode = false;
+let currentState = { lastWateredAt: Date.now(), lastWateredBy: null, totalWaterings: 0, bornAt: null, isDead: false, deathAt: null, isPlanted: false, plantedBy: null };
+let userName = localStorage.getItem(NAME_KEY) || null;
+let userId = localStorage.getItem(ID_KEY);
+if(!userId){
+  userId = "k_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+  localStorage.setItem(ID_KEY, userId);
+}
+let sonHesaplananYuzde = 100;
+let typewriterTimer = null;
+
+const el = (id) => document.getElementById(id);
+
+/* =========================================================
+   FIREBASE BAĞLANTISI
+   ========================================================= */
+function baslatFirebase(){
+  try{
+    if(firebaseConfig.apiKey.includes("BURAYA")) throw new Error("config doldurulmamış");
+    firebase.initializeApp(firebaseConfig);
+    plantRef = firebase.database().ref("kuzenBahcesi/bitki");
+    usersRef = firebase.database().ref("kuzenBahcesi/kullanicilar");
+
+    plantRef.on("value", (snap) => {
+      const data = snap.val();
+      if(data){
+        currentState.lastWateredAt = data.lastWateredAt || Date.now();
+        currentState.lastWateredBy = data.lastWateredBy || null;
+        currentState.totalWaterings = data.totalWaterings || 0;
+        currentState.bornAt = data.bornAt || null;
+        currentState.isDead = !!data.isDead;
+        currentState.deathAt = data.deathAt || null;
+        // eski kayıtlarda isPlanted alanı yoktu; varsa zaten ekiliydi demektir
+        currentState.isPlanted = data.isPlanted !== undefined ? !!data.isPlanted : true;
+        currentState.plantedBy = data.plantedBy || null;
+      }
+      liderlikSifirlaGerekliyse();
+      guncelleGorunum();
+    }, () => yerelModaGec());
+
+    usersRef.child(userId).on("value", (snap) => {
+      const u = snap.val();
+      el("scorePuan").textContent = u ? (u.puan||0) : 0;
+      el("scoreName").textContent = userName ? ("(" + userName + ")") : "";
+    });
+  } catch(e){
+    yerelModaGec();
+  }
+}
+
+function yerelModaGec(){
+  localMode = true;
+  el("localWarning").style.display = "block";
+  el("leaderNote").textContent = "Liderlik tablosu için Firebase bağlantısı gerekiyor. Şimdilik sadece kendi istatistiklerini görüyorsun.";
+  const kayitliBitki = JSON.parse(localStorage.getItem("kuzenBahcesiYerelBitki") || "null");
+  if(kayitliBitki) currentState = kayitliBitki;
+  const kayitliPuan = JSON.parse(localStorage.getItem("kuzenBahcesiYerelPuan") || "null") || {puan:0, sulamaSayisi:0};
+  el("scorePuan").textContent = kayitliPuan.puan;
+  el("scoreName").textContent = userName ? ("(" + userName + ")") : "";
+  liderlikSifirlaGerekliyse();
+  guncelleGorunum();
+}
+
+/* =========================================================
+   LİDERLİK SIFIRLAMA — bitki ekili değilse (ve ölü değilse) sıfırla
+   ========================================================= */
+function liderlikSifirlaGerekliyse(){
+  // bitki ölüyse dokunma; ekiliyse zaten sıfırlanacak bir şey yok bu akışta
+  if(currentState.isDead) return;
+  if(currentState.isPlanted) return;
+
+  if(localMode){
+    localStorage.removeItem("kuzenBahcesiYerelPuan");
+    el("scorePuan").textContent = "0";
+    return;
+  }
+  if(usersRef) usersRef.remove();
+}
+
+function bitkiDurumunuKaydet(){
+  if(localMode){
+    localStorage.setItem("kuzenBahcesiYerelBitki", JSON.stringify(currentState));
+    guncelleGorunum();
+    return;
+  }
+  plantRef.update({
+    lastWateredAt: currentState.lastWateredAt, // gerçek zaman (ekimde geriye tarihli olabilir) — ServerValue.TIMESTAMP kullanmıyoruz, o "şimdi"yi ezip %50 başlangıcını bozuyordu
+    lastWateredBy: currentState.lastWateredBy,
+    totalWaterings: currentState.totalWaterings,
+    bornAt: currentState.bornAt || firebase.database.ServerValue.TIMESTAMP,
+    isDead: currentState.isDead,
+    deathAt: currentState.deathAt,
+    isPlanted: currentState.isPlanted,
+    plantedBy: currentState.plantedBy
+  });
+}
+
+function kullaniciPuaniKaydet(){
+  if(localMode){
+    const kayitliPuan = JSON.parse(localStorage.getItem("kuzenBahcesiYerelPuan") || "null") || {puan:0, sulamaSayisi:0};
+    kayitliPuan.puan += PUAN_PER_SULAMA;
+    kayitliPuan.sulamaSayisi += 1;
+    kayitliPuan.isim = userName;
+    localStorage.setItem("kuzenBahcesiYerelPuan", JSON.stringify(kayitliPuan));
+    el("scorePuan").textContent = kayitliPuan.puan;
+    return;
+  }
+  usersRef.child(userId).transaction((cur) => {
+    if(!cur) cur = { isim: userName, puan: 0, sulamaSayisi: 0 };
+    cur.isim = userName;
+    cur.puan = (cur.puan || 0) + PUAN_PER_SULAMA;
+    cur.sulamaSayisi = (cur.sulamaSayisi || 0) + 1;
+    return cur;
+  });
+}
+
+/* =========================================================
+   BİTKİYİ EKME (ilk kurulum)
+   ========================================================= */
+function bitkiyiEk(){
+  if(!userName){ modaliGoster(); return; }
+  if(currentState.isPlanted) return;
+
+  currentState.isPlanted = true;
+  currentState.plantedBy = userName;
+  currentState.bornAt = Date.now();
+  currentState.lastWateredAt = Date.now() - (FULL_WATER_MS / 2); // %50 su seviyesiyle doğsun
+  currentState.lastWateredBy = null;
+  currentState.totalWaterings = 0;
+  currentState.isDead = false;
+  currentState.deathAt = null;
+
+  konfetiPatlat();
+  bitkiDurumunuKaydet();
+}
+
+function konfetiPatlat(){
+  if(typeof confetti !== "function") return; // CDN yüklenemediyse sessizce geç
+  const renkler = ['#3f8a5b','#8fc79a','#2f86c9','#dd9c28','#ffffff'];
+  confetti({ particleCount: 90, spread: 70, startVelocity: 38, origin: { y: 0.55 }, colors: renkler });
+  setTimeout(() => confetti({ particleCount: 60, spread: 100, startVelocity: 28, origin: { y: 0.5 }, colors: renkler }), 200);
+  setTimeout(() => confetti({ particleCount: 40, spread: 130, origin: { y: 0.45 }, colors: renkler }), 400);
+}
+
+/* =========================================================
+   BİTKİ SULAMA
+   ========================================================= */
+function bitkiyiSula(){
+  if(!userName){ modaliGoster(); return; }
+  if(!currentState.isPlanted) return;
+  if(currentState.isDead) return;
+  if(sonHesaplananYuzde >= MAX_WATER_YUZDE) return;
+
+  currentState.lastWateredAt = Date.now();
+  currentState.lastWateredBy = userName;
+  currentState.totalWaterings = (currentState.totalWaterings || 0) + 1;
+  if(!currentState.bornAt) currentState.bornAt = Date.now();
+
+  damlaEfekti();
+  bitkiDurumunuKaydet();
+  kullaniciPuaniKaydet();
+}
+
+function damlaEfekti(){
+  const wrap = el("plantWrap");
+  for(let i=0;i<5;i++){
+    const d = document.createElement("div");
+    d.className = "droplet";
+    d.textContent = "💧";
+    d.style.left = (40 + Math.random()*20) + "%";
+    d.style.top = (Math.random()*10) + "px";
+    d.style.animationDelay = (i*0.08)+"s";
+    wrap.appendChild(d);
+    setTimeout(()=>d.remove(), 1100);
+  }
+}
+
+/* =========================================================
+   DAKTİLO DİYALOG
+   ========================================================= */
+function rastgeleDiyalogGoster(){
+  const metin = DIYALOGLAR[Math.floor(Math.random()*DIYALOGLAR.length)];
+  daktiloYaz(metin);
+}
+function daktiloYaz(metin){
+  const bubble = el("speechBubble");
+  if(typewriterTimer) clearInterval(typewriterTimer);
+  bubble.style.display = "block";
+  bubble.textContent = "";
+  let i = 0;
+  typewriterTimer = setInterval(() => {
+    bubble.textContent += metin[i];
+    i++;
+    if(i >= metin.length){
+      clearInterval(typewriterTimer);
+      typewriterTimer = setTimeout(() => { bubble.style.display = "none"; }, 3200);
+    }
+  }, 32);
+}
+
+/* =========================================================
+   GÖRÜNÜMÜ HESAPLA VE GÜNCELLE
+   ========================================================= */
+function guncelleGorunum(){
+  const emoji = el("plantEmoji");
+  const title = el("statusTitle");
+  const sub = el("statusSub");
+  const btn = el("waterBtn");
+  const bar = el("waterBarFill");
+
+  emoji.classList.remove("healthy","thirsty","critical","dead");
+  btn.classList.remove("deadBtn");
+
+  // --- henüz bir bitki ekilmemiş: boş saksı + "Bitkiyi Ek" butonu ---
+  if(!currentState.isPlanted){
+    emoji.style.display = "none";
+    el("waterBarOuter").style.display = "none";
+    el("waterPct").style.display = "none";
+    el("infoCard").style.display = "none";
+    title.textContent = "Saksı boş duruyor";
+    title.style.color = "var(--ink)";
+    sub.textContent = "İlk bitkiyi eken sen ol!";
+    btn.disabled = false;
+    btn.textContent = "Bitkiyi Ek 🌱";
+    el("aliveDays").textContent = "🌱 Henüz ekilmedi";
+    el("youAre").textContent = userName ? ("Sen: " + userName) : "Sen: —";
+    return;
+  }
+  emoji.style.display = "";
+  el("waterBarOuter").style.display = "";
+  el("waterPct").style.display = "";
+  el("infoCard").style.display = "";
+
+  if(currentState.isDead){
+    sonHesaplananYuzde = 0;
+    el("waterBarFill").style.width = "0%";
+    el("waterPct").textContent = "%0 su seviyesi";
+    bar.style.background = "linear-gradient(90deg, var(--danger), #6e6e6e)";
+    emoji.textContent = "💀";
+    emoji.classList.add("dead");
+    title.textContent = "Bitki Öldü! 💀";
+    title.style.color = "var(--danger)";
+    sub.textContent = "Bu bitki artık canlanmayacak";
+    btn.disabled = true;
+    btn.classList.add("deadBtn");
+    btn.textContent = "Bitki Öldü 💀";
+  } else {
+    const gecen = Date.now() - currentState.lastWateredAt;
+    const kalanOran = Math.max(0, 1 - gecen / FULL_WATER_MS);
+    const yuzde = Math.round(kalanOran * 100);
+    sonHesaplananYuzde = yuzde;
+
+    // kalıcı ölüm kontrolü — sadece bir kere tetiklenir
+    if(yuzde <= 0 && !currentState.isDead){
+      currentState.isDead = true;
+      currentState.deathAt = Date.now();
+      bitkiDurumunuKaydet();
+      return; // bir sonraki döngüde yukarıdaki "isDead" dalı çalışacak
+    }
+
+    bar.style.width = yuzde + "%";
+    el("waterPct").textContent = "%" + yuzde + " su seviyesi";
+
+    if(yuzde >= MAX_WATER_YUZDE){
+      emoji.textContent = "🌸";
+      emoji.classList.add("healthy");
+      bar.style.background = "linear-gradient(90deg, var(--water), #4fb0e0)";
+      title.textContent = "Bitki mis gibi 🌿";
+      title.style.color = "var(--leaf-deep)";
+      sub.textContent = "Su seviyesi yeterli, şimdilik sulamaya gerek yok";
+      btn.disabled = true;
+      btn.textContent = "Su Seviyesi Yeterli 🌿";
+    } else if(yuzde > 50){
+      emoji.textContent = "🌸";
+      emoji.classList.add("healthy");
+      bar.style.background = "linear-gradient(90deg, var(--water), #4fb0e0)";
+      title.textContent = "Bitki mis gibi 🌿";
+      title.style.color = "var(--leaf-deep)";
+      sub.textContent = "Her şey yolunda";
+      btn.disabled = false;
+      btn.textContent = "Bitkiyi Sula 💧";
+    } else if(yuzde > 20){
+      emoji.textContent = "🌿";
+      emoji.classList.add("thirsty");
+      bar.style.background = "linear-gradient(90deg, var(--amber), #e9c15a)";
+      title.textContent = "Bitki susadı";
+      title.style.color = "var(--ink)";
+      sub.textContent = "Bir sulama iyi gelir";
+      btn.disabled = false;
+      btn.textContent = "Bitkiyi Sula 💧";
+    } else {
+      emoji.textContent = "🥀";
+      emoji.classList.add("critical");
+      bar.style.background = "linear-gradient(90deg, var(--danger), var(--amber))";
+      title.textContent = "Bitki can çekişiyor!";
+      title.style.color = "var(--danger)";
+      sub.textContent = "Acil su lazım";
+      btn.disabled = false;
+      btn.textContent = "Bitkiyi Sula 💧";
+    }
+  }
+
+  // hayatta kalınan gün sayısı
+  if(currentState.bornAt){
+    const bitisNoktasi = currentState.isDead && currentState.deathAt ? currentState.deathAt : Date.now();
+    const gunSayisi = Math.floor((bitisNoktasi - currentState.bornAt) / (24*60*60*1000));
+    el("aliveDays").textContent = (currentState.isDead ? "🪦 Yaşadığı süre: " : "🌞 Hayatta: ") + gunSayisi + " gün";
+  } else {
+    el("aliveDays").textContent = "🌞 Hayatta: 0 gün";
+  }
+
+  el("lastWatererVal").textContent = currentState.lastWateredBy || "—";
+  el("lastTimeVal").textContent = currentState.lastWateredAt
+    ? new Date(currentState.lastWateredAt).toLocaleTimeString("tr-TR", {hour:"2-digit",minute:"2-digit"})
+    : "—";
+  el("totalVal").textContent = currentState.totalWaterings || 0;
+  el("youAre").textContent = userName ? ("Sen: " + userName) : "Sen: —";
+}
+
+/* =========================================================
+   İSİM MODALI
+   ========================================================= */
+function modaliGoster(){ el("nameModal").classList.remove("hidden"); el("nameInput").focus(); }
+function modaliGizle(){ el("nameModal").classList.add("hidden"); }
+function isimKaydet(){
+  const val = el("nameInput").value.trim();
+  if(!val) return;
+  userName = val.slice(0,20);
+  localStorage.setItem(NAME_KEY, userName);
+  modaliGizle();
+  el("scoreName").textContent = "(" + userName + ")";
+  guncelleGorunum();
+}
+
+/* =========================================================
+   LİDERLİK TABLOSU
+   ========================================================= */
+function liderlikGoster(){
+  el("leaderModal").classList.remove("hidden");
+  const liste = el("leaderList");
+
+  if(localMode){
+    const kayitliPuan = JSON.parse(localStorage.getItem("kuzenBahcesiYerelPuan") || "null") || {puan:0, sulamaSayisi:0};
+    liste.innerHTML = `<div class="leaderRow"><span class="rank">1</span><span class="lname">${userName || "Sen"}</span><span class="lpuan">${kayitliPuan.puan} p</span><span class="lsayi">(${kayitliPuan.sulamaSayisi} sulama)</span></div>`;
+    return;
+  }
+
+  leaderQuery = usersRef.orderByChild("puan").limitToLast(10);
+  leaderQuery.on("value", (snap) => {
+    const kayitlar = [];
+    snap.forEach((cs) => { kayitlar.push(cs.val()); });
+    kayitlar.reverse(); // en yüksek puan en üstte
+    if(kayitlar.length === 0){
+      liste.innerHTML = `<p style="text-align:center;color:var(--ink-soft);font-size:.8rem;">Henüz kimse sulamamış, ilk sen ol!</p>`;
+      return;
+    }
+    liste.innerHTML = kayitlar.map((k,i) => `
+      <div class="leaderRow">
+        <span class="rank">${i+1}</span>
+        <span class="lname">${(k.isim||"Bilinmeyen")}</span>
+        <span class="lpuan">${k.puan||0} p</span>
+        <span class="lsayi">(${k.sulamaSayisi||0} sulama)</span>
+      </div>`).join("");
+  });
+}
+function liderlikGizle(){
+  el("leaderModal").classList.add("hidden");
+  if(leaderQuery){ leaderQuery.off(); leaderQuery = null; }
+}
+
+/* =========================================================
+   BAŞLANGIÇ
+   ========================================================= */
+function anaButonTiklandi(){
+  if(!currentState.isPlanted){ bitkiyiEk(); }
+  else { bitkiyiSula(); }
+}
+
+el("waterBtn").addEventListener("click", anaButonTiklandi);
+el("nameSubmit").addEventListener("click", isimKaydet);
+el("nameInput").addEventListener("keydown", (e)=>{ if(e.key === "Enter") isimKaydet(); });
+el("leaderBtn").addEventListener("click", liderlikGoster);
+el("closeLeaderBtn").addEventListener("click", liderlikGizle);
+
+if(!userName){ modaliGoster(); } else { el("scoreName").textContent = "(" + userName + ")"; }
+
+baslatFirebase();
+guncelleGorunum();
+setInterval(guncelleGorunum, 1000);
+</script>
+</body>
+</html>
