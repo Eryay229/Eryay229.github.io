@@ -78,7 +78,6 @@
   }
   .hill.back{ height:16vh; background:#c9e6cf; transform:scale(1.9,1) translateY(6%); opacity:.55; }
 
-  /* --- üst bar: puan + liderlik, artık normal akışta, başlıkla asla çakışmaz --- */
   #topBar{
     width:100%; max-width:420px;
     display:flex; align-items:center; justify-content:space-between;
@@ -100,7 +99,6 @@
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   }
 
-  /* --- üst bar: liderlik butonu --- */
   #leaderBtn{
     background:rgba(255,255,255,.85); backdrop-filter:blur(4px);
     border:none; border-radius:999px; padding:7px 11px;
@@ -328,8 +326,8 @@
     <div id="waterPct">%100 su seviyesi</div>
 
     <div id="statusLine">
-      <div class="title" id="statusTitle">Bitki mis gibi 🌿</div>
-      <div class="sub" id="statusSub">Su seviyesi yeterli</div>
+      <div class="title" id="statusTitle">Bahçe yükleniyor...</div>
+      <div class="sub" id="statusSub">Bir saniye sürebilir 🌱</div>
     </div>
   </div>
 
@@ -339,7 +337,7 @@
     <div class="row"><span class="label">Toplam sulama</span><span class="value" id="totalVal">0</span></div>
   </div>
 
-  <button id="waterBtn">Bitkiyi Sula 💧</button>
+  <button id="waterBtn" disabled>Yükleniyor…</button>
   <footer id="youAre">Sen: —</footer>
 </div>
 
@@ -445,6 +443,7 @@ const DIYALOGLAR = [
    ========================================================= */
 let plantRef = null, usersRef = null, leaderQuery = null;
 let localMode = false;
+let veriYuklendiMi = false; // Firebase'den (veya yerel modda) ilk veri gelene kadar true olmaz
 let currentState = { lastWateredAt: Date.now(), lastWateredBy: null, totalWaterings: 0, bornAt: null, isDead: false, deathAt: null, isPlanted: false, plantedBy: null };
 let userName = localStorage.getItem(NAME_KEY) || null;
 let userId = localStorage.getItem(ID_KEY);
@@ -456,6 +455,16 @@ let sonHesaplananYuzde = 100;
 let typewriterTimer = null;
 
 const el = (id) => document.getElementById(id);
+
+/* =========================================================
+   YÜZDE HESABI (her zaman TAZE hesaplanır — stale değere güvenilmez)
+   ========================================================= */
+function anlikSuYuzdesi(durum){
+  if(durum.isDead) return 0;
+  if(!durum.lastWateredAt) return 100;
+  const gecen = Date.now() - durum.lastWateredAt;
+  return Math.round(Math.max(0, 1 - gecen / FULL_WATER_MS) * 100);
+}
 
 /* =========================================================
    FIREBASE BAĞLANTISI
@@ -480,6 +489,7 @@ function baslatFirebase(){
         currentState.isPlanted = data.isPlanted !== undefined ? !!data.isPlanted : true;
         currentState.plantedBy = data.plantedBy || null;
       }
+      veriYuklendiMi = true;
       liderlikSifirlaGerekliyse();
       guncelleGorunum();
     }, () => yerelModaGec());
@@ -492,6 +502,11 @@ function baslatFirebase(){
   } catch(e){
     yerelModaGec();
   }
+
+  // Firebase aşırı yavaş kalır/hiç yanıt vermezse sonsuza kadar "Yükleniyor" ekranında kalmasın
+  setTimeout(() => {
+    if(!veriYuklendiMi){ veriYuklendiMi = true; guncelleGorunum(); }
+  }, 8000);
 }
 
 function yerelModaGec(){
@@ -503,6 +518,7 @@ function yerelModaGec(){
   const kayitliPuan = JSON.parse(localStorage.getItem("kuzenBahcesiYerelPuan") || "null") || {puan:0, sulamaSayisi:0};
   el("scorePuan").textContent = kayitliPuan.puan;
   el("scoreName").textContent = userName ? ("(" + userName + ")") : "";
+  veriYuklendiMi = true;
   liderlikSifirlaGerekliyse();
   guncelleGorunum();
 }
@@ -530,7 +546,7 @@ function bitkiDurumunuKaydet(){
     return;
   }
   plantRef.update({
-    lastWateredAt: currentState.lastWateredAt, // gerçek zaman (ekimde geriye tarihli olabilir) — ServerValue.TIMESTAMP kullanmıyoruz, o "şimdi"yi ezip %50 başlangıcını bozuyordu
+    lastWateredAt: currentState.lastWateredAt,
     lastWateredBy: currentState.lastWateredBy,
     totalWaterings: currentState.totalWaterings,
     bornAt: currentState.bornAt || firebase.database.ServerValue.TIMESTAMP,
@@ -561,23 +577,46 @@ function kullaniciPuaniKaydet(){
 }
 
 /* =========================================================
-   BİTKİYİ EKME (ilk kurulum)
+   BİTKİYİ EKME (ilk kurulum) — atomik transaction ile çift ekimi engeller
    ========================================================= */
 function bitkiyiEk(){
   if(!userName){ modaliGoster(); return; }
+  if(!veriYuklendiMi) return; // gerçek veri gelmeden hiçbir işlem yapılamaz
   if(currentState.isPlanted) return;
 
-  currentState.isPlanted = true;
-  currentState.plantedBy = userName;
-  currentState.bornAt = Date.now();
-  currentState.lastWateredAt = Date.now() - (FULL_WATER_MS / 2); // %50 su seviyesiyle doğsun
-  currentState.lastWateredBy = null;
-  currentState.totalWaterings = 0;
-  currentState.isDead = false;
-  currentState.deathAt = null;
+  const simdi = Date.now();
+  const yeniBitki = {
+    isPlanted:true, plantedBy:userName, bornAt:simdi,
+    lastWateredAt: simdi - (FULL_WATER_MS / 2), // %50 su seviyesiyle doğsun
+    lastWateredBy:null, totalWaterings:0, isDead:false, deathAt:null
+  };
 
-  konfetiPatlat();
-  bitkiDurumunuKaydet();
+  if(localMode){
+    currentState = yeniBitki;
+    konfetiPatlat();
+    bitkiDurumunuKaydet();
+    return;
+  }
+
+  el("waterBtn").disabled = true;
+  plantRef.transaction((cur) => {
+    if(cur && cur.isPlanted) return; // zaten ekiliyse dokunma (abort)
+    return yeniBitki;
+  }, (err, committed, snap) => {
+    if(committed){
+      const data = snap.val() || yeniBitki;
+      currentState.isPlanted = true;
+      currentState.plantedBy = data.plantedBy;
+      currentState.bornAt = data.bornAt;
+      currentState.lastWateredAt = data.lastWateredAt;
+      currentState.lastWateredBy = data.lastWateredBy || null;
+      currentState.totalWaterings = data.totalWaterings || 0;
+      currentState.isDead = false;
+      currentState.deathAt = null;
+      konfetiPatlat();
+    }
+    guncelleGorunum();
+  });
 }
 
 function konfetiPatlat(){
@@ -590,21 +629,53 @@ function konfetiPatlat(){
 
 /* =========================================================
    BİTKİ SULAMA
+   Kritik güvenlik notu: kontrol artık istemcideki (client-side) bayat
+   bir değere değil, Firebase transaction'ı sırasında SUNUCUDAKİ gerçek
+   son duruma bakıyor. Böylece art arda hızlı tıklama, birden fazla
+   sekme/cihaz açma ya da konsoldan fonksiyonu doğrudan çağırma gibi
+   yöntemlerle puan/sulama kasmak artık mümkün değil.
    ========================================================= */
 function bitkiyiSula(){
   if(!userName){ modaliGoster(); return; }
-  if(!currentState.isPlanted) return;
-  if(currentState.isDead) return;
-  if(sonHesaplananYuzde >= MAX_WATER_YUZDE) return;
+  if(!veriYuklendiMi) return;
+  if(!currentState.isPlanted || currentState.isDead) return;
 
-  currentState.lastWateredAt = Date.now();
-  currentState.lastWateredBy = userName;
-  currentState.totalWaterings = (currentState.totalWaterings || 0) + 1;
-  if(!currentState.bornAt) currentState.bornAt = Date.now();
+  if(localMode){
+    // yerel modda tek kullanıcı olduğu için basit taze kontrol yeterli
+    if(anlikSuYuzdesi(currentState) >= MAX_WATER_YUZDE) return;
+    currentState.lastWateredAt = Date.now();
+    currentState.lastWateredBy = userName;
+    currentState.totalWaterings = (currentState.totalWaterings || 0) + 1;
+    if(!currentState.bornAt) currentState.bornAt = Date.now();
+    damlaEfekti();
+    bitkiDurumunuKaydet();
+    kullaniciPuaniKaydet();
+    guncelleGorunum();
+    return;
+  }
 
-  damlaEfekti();
-  bitkiDurumunuKaydet();
-  kullaniciPuaniKaydet();
+  el("waterBtn").disabled = true; // spam tıklamayı anında görsel olarak da engelle
+  plantRef.transaction((cur) => {
+    if(!cur || !cur.isPlanted || cur.isDead) return; // abort — ekili değil / ölü
+    const yuzdeDb = anlikSuYuzdesi({ isDead:false, lastWateredAt: cur.lastWateredAt });
+    if(yuzdeDb >= MAX_WATER_YUZDE) return; // abort — DB'ye göre zaten yeterince sulu
+    cur.lastWateredAt = Date.now();
+    cur.lastWateredBy = userName;
+    cur.totalWaterings = (cur.totalWaterings || 0) + 1;
+    if(!cur.bornAt) cur.bornAt = Date.now();
+    return cur;
+  }, (err, committed, snap) => {
+    if(committed){
+      const data = snap.val();
+      currentState.lastWateredAt = data.lastWateredAt;
+      currentState.lastWateredBy = data.lastWateredBy;
+      currentState.totalWaterings = data.totalWaterings || 0;
+      currentState.bornAt = data.bornAt || currentState.bornAt;
+      damlaEfekti();
+      kullaniciPuaniKaydet();
+    }
+    guncelleGorunum();
+  });
 }
 
 function damlaEfekti(){
@@ -654,6 +725,23 @@ function guncelleGorunum(){
   const btn = el("waterBtn");
   const bar = el("waterBarFill");
 
+  // --- Firebase'den (veya yerel depodan) ilk veri gelene kadar "yükleniyor" ekranı ---
+  // Bu, sayfa ilk açıldığında bitkinin bir an için "ekili değil" gibi görünüp
+  // hemen ardından eski haline dönmesi hatasını engeller.
+  if(!veriYuklendiMi){
+    emoji.style.display = "none";
+    el("waterBarOuter").style.display = "none";
+    el("waterPct").style.display = "none";
+    el("infoCard").style.display = "none";
+    title.textContent = "Bahçe yükleniyor...";
+    title.style.color = "var(--ink)";
+    sub.textContent = "Bir saniye sürebilir 🌱";
+    btn.disabled = true;
+    btn.textContent = "Yükleniyor…";
+    el("aliveDays").textContent = "🌱 Yükleniyor…";
+    return;
+  }
+
   emoji.classList.remove("healthy","thirsty","critical","dead");
   btn.classList.remove("deadBtn");
 
@@ -691,9 +779,7 @@ function guncelleGorunum(){
     btn.classList.add("deadBtn");
     btn.textContent = "Bitki Öldü 💀";
   } else {
-    const gecen = Date.now() - currentState.lastWateredAt;
-    const kalanOran = Math.max(0, 1 - gecen / FULL_WATER_MS);
-    const yuzde = Math.round(kalanOran * 100);
+    const yuzde = anlikSuYuzdesi(currentState);
     sonHesaplananYuzde = yuzde;
 
     // kalıcı ölüm kontrolü — sadece bir kere tetiklenir
@@ -786,7 +872,15 @@ function modaliGizle(){ el("nameModal").classList.add("hidden"); }
 function isimKaydet(){
   const val = el("nameInput").value.trim();
   if(!val) return;
-  userName = val.slice(0,20);
+  const yeniIsim = val.slice(0,20);
+
+  // aynı isim (büyük/küçük harf farketmez) tekrar girilirse kayıt yapılmadan modal kapanır
+  if(userName && yeniIsim.toLowerCase() === userName.toLowerCase()){
+    modaliGizle();
+    return;
+  }
+
+  userName = yeniIsim;
   localStorage.setItem(NAME_KEY, userName);
   modaliGizle();
   el("scoreName").textContent = "(" + userName + ")";
@@ -861,7 +955,6 @@ el("scoreBadge").addEventListener("click", () => modaliGoster(true));
 if(!userName){ modaliGoster(); } else { el("scoreName").textContent = "(" + userName + ")"; }
 
 baslatFirebase();
-guncelleGorunum();
 setInterval(guncelleGorunum, 1000);
 </script>
 </body>
