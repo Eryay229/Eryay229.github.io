@@ -295,6 +295,215 @@
   .leaderRow .lsayi{ font-size:.7rem; color:var(--ink-soft); margin-left:4px; }
 
   ::selection{ background:var(--leaf-light); }
+
+  /* =========================================================
+     EK 1/3 — DİNAMİK TEMA + BAŞARIM BİLDİRİMİ + BAŞARIM MODALI (CSS)
+     Bu blok en altta olduğu için üstteki :root değerlerini ezer.
+     ========================================================= */
+  :root{
+    /* tema motorunun canlı güncellediği değişkenler */
+    --sky-top:#dff3ea;
+    --sky-mid:#cfe9f7;
+    --sky-bottom:#eaf6f0;
+    --aura:rgba(168,220,192,.5);
+    --hill1:#8fc79a;
+    --hill2:#c9e6cf;
+    --cam:rgba(255,255,255,.85);
+    --cam-soft:rgba(255,255,255,.72);
+    --kenar:rgba(255,255,255,.9);
+    --golge:rgba(30,60,40,.16);
+    --cizgi:rgba(60,80,70,.18);
+    --yildiz:0;
+  }
+
+  html,body{
+    background:
+      radial-gradient(120% 68% at 76% 14%, var(--aura) 0%, rgba(0,0,0,0) 62%),
+      linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 56%, var(--sky-bottom) 100%);
+  }
+
+  /* gece yıldızları */
+  #yildizlar{
+    position:fixed; inset:0; pointer-events:none; z-index:1;
+    opacity:var(--yildiz);
+    background-image:
+      radial-gradient(1.6px 1.6px at 12% 14%, #fff 50%, transparent 51%),
+      radial-gradient(1.3px 1.3px at 26% 33%, #fff 50%, transparent 51%),
+      radial-gradient(1.8px 1.8px at 44% 9%,  #fff 50%, transparent 51%),
+      radial-gradient(1.2px 1.2px at 59% 26%, #fff 50%, transparent 51%),
+      radial-gradient(1.7px 1.7px at 78% 17%, #fff 50%, transparent 51%),
+      radial-gradient(1.3px 1.3px at 90% 38%, #fff 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 7% 44%,  #fff 50%, transparent 51%),
+      radial-gradient(1.2px 1.2px at 35% 52%, #fff 50%, transparent 51%),
+      radial-gradient(1.6px 1.6px at 68% 47%, #fff 50%, transparent 51%),
+      radial-gradient(1.1px 1.1px at 52% 62%, #fff 50%, transparent 51%);
+    transition:opacity .9s ease;
+  }
+
+  /* sabit beyaz yüzeyler artık temayla birlikte değişiyor */
+  .hill{ background:var(--hill1); }
+  .hill.back{ background:var(--hill2); }
+  #scoreBadge, #leaderBtn, #basarimBtn{ background:var(--cam); box-shadow:0 3px 8px var(--golge); }
+  #aliveDays{ background:var(--cam-soft); }
+  #infoCard{ background:var(--cam-soft); box-shadow:0 4px 14px var(--golge); }
+  #infoCard .row + .row{ border-top:1px dashed var(--cizgi); }
+  #waterBarOuter{ background:var(--cam-soft); border-color:var(--kenar); }
+  #closeLeaderBtn, #closeBasarimBtn{ background:var(--cam-soft); color:var(--ink); }
+  #nameInput{ background:var(--cam-soft); color:var(--ink); border-color:var(--cizgi); }
+  .modalCard{ box-shadow:0 20px 44px var(--golge); }
+
+  /* başarım düğmesi (topBar) */
+  #basarimBtn{
+    border:none; border-radius:999px; padding:7px 10px;
+    font-family:'Fredoka',sans-serif; font-weight:600; font-size:.76rem;
+    color:var(--ink); cursor:pointer; white-space:nowrap; flex-shrink:0;
+    position:relative;
+  }
+  #basarimBtn .yeniNokta{
+    position:absolute; top:4px; right:5px; width:8px; height:8px; border-radius:50%;
+    background:var(--gold); box-shadow:0 0 0 2px var(--cam); display:none;
+  }
+  #basarimBtn.yeniVar .yeniNokta{ display:block; }
+  #topBarBtnGrup{ display:flex; gap:6px; flex-shrink:0; }
+
+  /* =============== BAŞARIM BİLDİRİMİ (toast) =============== */
+  #toastKatmani{
+    position:fixed; top:0; left:50%; transform:translateX(-50%);
+    z-index:9999; pointer-events:none;
+    padding-top:calc(env(safe-area-inset-top,0px) + 14px);
+    width:min(390px, calc(100vw - 22px));
+    display:flex; flex-direction:column; align-items:center; gap:9px;
+  }
+  .basarimToast{
+    pointer-events:auto; position:relative; overflow:hidden; width:100%;
+    background:var(--cam);
+    backdrop-filter:blur(16px) saturate(1.3);
+    -webkit-backdrop-filter:blur(16px) saturate(1.3);
+    border:1px solid var(--kenar);
+    border-radius:22px;
+    box-shadow:0 14px 34px var(--golge), inset 0 1px 0 rgba(255,255,255,.3);
+    padding:13px 15px 15px; color:var(--ink);
+    transform:translateY(-130%); opacity:0;
+    animation:toastGir .6s cubic-bezier(.16,1.02,.3,1) forwards;
+  }
+  .basarimToast.kapaniyor{ animation:toastCik .48s cubic-bezier(.4,0,.75,.2) forwards; }
+  @keyframes toastGir{
+    0%{ transform:translateY(-130%) scale(.94); opacity:0; }
+    62%{ transform:translateY(5px) scale(1.01); opacity:1; }
+    100%{ transform:translateY(0) scale(1); opacity:1; }
+  }
+  @keyframes toastCik{
+    0%{ transform:translateY(0) scale(1); opacity:1; }
+    100%{ transform:translateY(-118%) scale(.95); opacity:0; }
+  }
+  .basarimToast .ustSatir{
+    display:flex; align-items:center; gap:9px;
+    padding-bottom:10px; border-bottom:1px solid var(--cizgi);
+  }
+  .basarimToast .kupa{
+    width:29px; height:29px; flex:0 0 29px; border-radius:50%;
+    background:linear-gradient(145deg,#7fd1a4,#3f8a5b);
+    box-shadow:0 3px 10px rgba(63,138,91,.4), inset 0 1px 0 rgba(255,255,255,.5);
+    display:grid; place-items:center; font-size:.9rem; line-height:1;
+    animation:kupaZipla .8s cubic-bezier(.3,1.4,.5,1) .12s both;
+  }
+  @keyframes kupaZipla{
+    0%{ transform:scale(.3) rotate(-25deg); }
+    70%{ transform:scale(1.12) rotate(6deg); }
+    100%{ transform:scale(1) rotate(0); }
+  }
+  .basarimToast .ustYazi{
+    font-family:'Fredoka',sans-serif; font-weight:600; font-size:.82rem;
+    color:var(--leaf-deep); flex:1;
+  }
+  .basarimToast .kapat{
+    border:none; background:transparent; cursor:pointer; color:var(--ink-soft);
+    font-size:.95rem; line-height:1; padding:2px 4px; border-radius:8px; opacity:.55;
+  }
+  .basarimToast .kapat:hover{ opacity:1; }
+  .basarimToast .govde{ display:flex; align-items:center; gap:12px; padding:11px 2px 8px; }
+  .basarimToast .bEmoji{
+    font-size:1.95rem; line-height:1; flex:0 0 auto;
+    filter:drop-shadow(0 4px 8px rgba(30,60,40,.2));
+    animation:emojiBelir .7s cubic-bezier(.2,1.3,.4,1) .2s both;
+  }
+  @keyframes emojiBelir{
+    0%{ transform:scale(.4) translateY(6px); opacity:0; }
+    100%{ transform:scale(1) translateY(0); opacity:1; }
+  }
+  .basarimToast .bIsim{ font-family:'Fredoka',sans-serif; font-weight:600; font-size:1.02rem; line-height:1.25; }
+  .basarimToast .bKisi{ font-size:.8rem; color:var(--ink-soft); padding-left:2px; }
+  .basarimToast .bKisi b{ color:var(--ink); font-weight:700; }
+  .basarimToast .sure{
+    position:absolute; left:0; bottom:0; height:3px; width:100%; transform-origin:left center;
+    background:linear-gradient(90deg,#8fc79a,#3f8a5b);
+    animation:sureAk 4s linear forwards;
+  }
+  @keyframes sureAk{ from{ transform:scaleX(1); } to{ transform:scaleX(0); } }
+  .basarimToast .parilti{
+    position:absolute; top:0; left:-60%; width:45%; height:100%; pointer-events:none;
+    background:linear-gradient(100deg,transparent,rgba(255,255,255,.5),transparent);
+    animation:parildaKay 1.5s ease .3s 1;
+  }
+  @keyframes parildaKay{ to{ left:120%; } }
+
+  /* =============== BAŞARIM MODALI =============== */
+  #basarimOzet{
+    display:flex; align-items:center; gap:10px;
+    margin:2px 0 12px; text-align:left;
+  }
+  #basarimOzet .sayi{
+    font-family:'Fredoka',sans-serif; font-weight:600; font-size:.9rem;
+    color:var(--leaf-deep); white-space:nowrap;
+  }
+  #basarimCubuk{
+    flex:1; height:8px; border-radius:999px; overflow:hidden;
+    background:var(--cizgi);
+  }
+  #basarimCubukDolu{
+    height:100%; width:0%; border-radius:999px;
+    background:linear-gradient(90deg,#8fc79a,#3f8a5b);
+    transition:width .5s cubic-bezier(.3,1,.4,1);
+  }
+  #basarimListesi{ text-align:left; display:flex; flex-direction:column; gap:7px; }
+  .basarimSatir{
+    display:flex; align-items:center; gap:11px;
+    padding:9px 11px; border-radius:14px;
+    background:rgba(63,138,91,.06);
+    border:1px solid transparent;
+    transition:background .3s ease, border-color .3s ease;
+  }
+  .basarimSatir.kazanildi{
+    background:linear-gradient(135deg, rgba(143,199,154,.22), rgba(63,138,91,.12));
+    border-color:rgba(63,138,91,.35);
+  }
+  .basarimSatir .sEmoji{
+    font-size:1.5rem; line-height:1; flex:0 0 auto; width:30px; text-align:center;
+  }
+  .basarimSatir.kilitli .sEmoji{ filter:grayscale(1); opacity:.45; }
+  .basarimSatir .sMetin{ flex:1; min-width:0; }
+  .basarimSatir .sAd{
+    font-family:'Fredoka',sans-serif; font-weight:600; font-size:.88rem; line-height:1.2;
+  }
+  .basarimSatir.kilitli .sAd{ color:var(--ink-soft); }
+  .basarimSatir .sAciklama{ font-size:.72rem; color:var(--ink-soft); margin-top:2px; line-height:1.4; }
+  .basarimSatir .sDurum{
+    flex:0 0 auto; font-size:.68rem; font-weight:700;
+    padding:4px 9px; border-radius:999px; white-space:nowrap;
+  }
+  .basarimSatir.kazanildi .sDurum{ background:var(--leaf); color:#fff; }
+  .basarimSatir.kilitli .sDurum{ background:var(--cizgi); color:var(--ink-soft); }
+  .basarimSatir.yeniAcildi{ animation:satirParla 1.4s ease 1; }
+  @keyframes satirParla{
+    0%{ transform:scale(1); box-shadow:0 0 0 0 rgba(63,138,91,.45); }
+    35%{ transform:scale(1.02); box-shadow:0 0 0 8px rgba(63,138,91,0); }
+    100%{ transform:scale(1); box-shadow:0 0 0 0 rgba(63,138,91,0); }
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    .basarimToast{ animation-duration:.01ms; transform:none; opacity:1; }
+  }
+
 </style>
 </head>
 <body>
@@ -305,7 +514,7 @@
 
   <div id="topBar">
     <div id="scoreBadge" title="İsmini değiştirmek için tıkla">⭐ <span id="scorePuan">0</span> <span class="name" id="scoreName"></span></div>
-    <button id="leaderBtn">🏆 Liderlik</button>
+    <span id="topBarBtnGrup"><!-- <button id="basarimBtn" title="Başarımlar">🏅<span class="yeniNokta"></span></button> --><button id="leaderBtn">🏆 Liderlik</button></span>
   </div>
 
   <header>
@@ -338,7 +547,6 @@
   </div>
 
   <button id="waterBtn" disabled>Yükleniyor…</button>
-  <footer id="youAre">Sen: —</footer>
 </div>
 
 <!-- isim giriş modalı -->
@@ -362,6 +570,28 @@
     <button id="closeLeaderBtn" class="primaryBtn">Kapat</button>
   </div>
 </div>
+
+
+<!-- ===== EK 2/3 — yildiz katmani (tema sistemi icin, aktif kaliyor) ===== -->
+<div id="yildizlar"></div>
+
+<!-- Görev/başarım sistemi devre dışı bırakıldı:
+<div id="toastKatmani" aria-live="polite"></div>
+
+<div id="basarimModal" class="modalOverlay hidden">
+  <div class="modalCard">
+    <div style="font-size:2rem;">&#127942;</div>
+    <h2>Basarimlar</h2>
+    <p id="basarimNot">Bahcede yaptiklarin burada birikiyor.</p>
+    <div id="basarimOzet">
+      <span class="sayi" id="basarimSayac">0 / 0</span>
+      <span id="basarimCubuk"><span id="basarimCubukDolu"></span></span>
+    </div>
+    <div id="basarimListesi"></div>
+    <button id="closeBasarimBtn" class="primaryBtn">Kapat</button>
+  </div>
+</div>
+-->
 
 <script>
 /* =========================================================
@@ -594,6 +824,7 @@ function bitkiyiEk(){
   if(localMode){
     currentState = yeniBitki;
     konfetiPatlat();
+    // basarimOlayKontrol("ekim");
     bitkiDurumunuKaydet();
     return;
   }
@@ -614,6 +845,7 @@ function bitkiyiEk(){
       currentState.isDead = false;
       currentState.deathAt = null;
       konfetiPatlat();
+      // basarimOlayKontrol("ekim");
     }
     guncelleGorunum();
   });
@@ -639,6 +871,7 @@ function bitkiyiSula(){
   if(!userName){ modaliGoster(); return; }
   if(!veriYuklendiMi) return;
   if(!currentState.isPlanted || currentState.isDead) return;
+  // sonSulamaOncesiYuzde = anlikSuYuzdesi(currentState); // görev/başarım sistemi devre dışı
 
   if(localMode){
     // yerel modda tek kullanıcı olduğu için basit taze kontrol yeterli
@@ -650,6 +883,7 @@ function bitkiyiSula(){
     damlaEfekti();
     bitkiDurumunuKaydet();
     kullaniciPuaniKaydet();
+    // basarimOlayKontrol("sulama");
     guncelleGorunum();
     return;
   }
@@ -673,6 +907,7 @@ function bitkiyiSula(){
       currentState.bornAt = data.bornAt || currentState.bornAt;
       damlaEfekti();
       kullaniciPuaniKaydet();
+      // basarimOlayKontrol("sulama");
     }
     guncelleGorunum();
   });
@@ -757,7 +992,6 @@ function guncelleGorunum(){
     btn.disabled = false;
     btn.textContent = "Bitkiyi Ek 🌱";
     el("aliveDays").textContent = "🌱 Henüz ekilmedi";
-    el("youAre").textContent = userName ? ("Sen: " + userName) : "Sen: —";
     return;
   }
   emoji.style.display = "";
@@ -846,7 +1080,6 @@ function guncelleGorunum(){
     ? new Date(currentState.lastWateredAt).toLocaleTimeString("tr-TR", {hour:"2-digit",minute:"2-digit"})
     : "—";
   el("totalVal").textContent = currentState.totalWaterings || 0;
-  el("youAre").textContent = userName ? ("Sen: " + userName) : "Sen: —";
 }
 
 /* =========================================================
@@ -956,6 +1189,406 @@ if(!userName){ modaliGoster(); } else { el("scoreName").textContent = "(" + user
 
 baslatFirebase();
 setInterval(guncelleGorunum, 1000);
+
+/* =========================================================
+   EK 3/3 — DİNAMİK TEMA + BAŞARIM SİSTEMİ
+   ========================================================= */
+
+/* ---------------- Tema ayarları ---------------- */
+const VARSAYILAN_KONUM = { lat: 41.0082, lon: 28.9784, ad: "İstanbul" };
+const KONUM_IZNI_ISTE  = false;         // konum izni istenmiyor, her zaman İstanbul kullanılır
+const ALACAKARANLIK_DK = 55;            // gün batımı temasının süresi (45-60 dk)
+const YEDEK_DOGUS      = 6 * 60 + 30;   // API yoksa 06:30
+const YEDEK_BATIS      = 18 * 60 + 30;  // API yoksa 18:30 (-> 19:25'e kadar gün batımı)
+
+const PALET = {
+  sabah: {
+    skyTop:"#fdeedf", skyMid:"#e9f4ee", skyBot:"#dcf0f8",
+    aura:"#ffd7a8", auraA:.55, hill1:"#a7d3ae", hill2:"#d6ebd8",
+    ink:"#2a3a30", inkSoft:"#5d7168", paper:"#fffaf3", leafDeep:"#2f6b45",
+    cam:"#ffffff", camA:.82, camSoft:"#ffffff", camSoftA:.70,
+    kenar:"#ffffff", kenarA:.85, golge:"#1e3c28", golgeA:.14,
+    cizgi:"#3c5046", cizgiA:.18, yildiz:0
+  },
+  gunduz: {
+    skyTop:"#dff3ea", skyMid:"#cfe9f7", skyBot:"#eaf6f0",
+    aura:"#a8dcc0", auraA:.5, hill1:"#8fc79a", hill2:"#c9e6cf",
+    ink:"#20302a", inkSoft:"#4d6058", paper:"#fbfaf6", leafDeep:"#2f6b45",
+    cam:"#ffffff", camA:.85, camSoft:"#ffffff", camSoftA:.72,
+    kenar:"#ffffff", kenarA:.9, golge:"#1e3c28", golgeA:.16,
+    cizgi:"#3c5046", cizgiA:.18, yildiz:0
+  },
+  gunbatimi: {
+    skyTop:"#ffb27a", skyMid:"#f2749b", skyBot:"#7b5ea7",
+    aura:"#ffd9a0", auraA:.6, hill1:"#c07d84", hill2:"#dda389",
+    ink:"#3a1f33", inkSoft:"#6d4a5e", paper:"#fff3ea", leafDeep:"#7a3355",
+    cam:"#fff3ea", camA:.72, camSoft:"#fff3ea", camSoftA:.58,
+    kenar:"#ffffff", kenarA:.55, golge:"#4a1f38", golgeA:.28,
+    cizgi:"#6b3b52", cizgiA:.25, yildiz:.12
+  },
+  aksam: {
+    skyTop:"#3d3566", skyMid:"#2a2a4d", skyBot:"#1d2138",
+    aura:"#6b5a9e", auraA:.45, hill1:"#3a4a63", hill2:"#2c3850",
+    ink:"#eef1f8", inkSoft:"#b6bfd4", paper:"#262c47", leafDeep:"#9fe0bd",
+    cam:"#2b3050", camA:.62, camSoft:"#2b3050", camSoftA:.48,
+    kenar:"#ffffff", kenarA:.16, golge:"#080b18", golgeA:.45,
+    cizgi:"#ffffff", cizgiA:.16, yildiz:.6
+  },
+  gece: {
+    skyTop:"#0a0f1e", skyMid:"#101833", skyBot:"#161d3a",
+    aura:"#26335c", auraA:.5, hill1:"#1c2a45", hill2:"#16203a",
+    ink:"#e9eef8", inkSoft:"#9fb0c9", paper:"#171f38", leafDeep:"#8ddcb0",
+    cam:"#141c33", camA:.68, camSoft:"#141c33", camSoftA:.52,
+    kenar:"#ffffff", kenarA:.12, golge:"#000000", golgeA:.5,
+    cizgi:"#ffffff", cizgiA:.13, yildiz:1
+  }
+};
+
+const temaDurum = { dogus: YEDEK_DOGUS, batis: YEDEK_BATIS };
+
+function hexToRgb(h){
+  h = String(h).replace("#","");
+  if(h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+  return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+}
+function rgbToHex(r,g,b){
+  const p = (n) => Math.round(Math.max(0, Math.min(255, n))).toString(16).padStart(2,"0");
+  return "#" + p(r) + p(g) + p(b);
+}
+function renkKaristir(a,b,t){
+  const A = hexToRgb(a), B = hexToRgb(b);
+  return rgbToHex(A[0]+(B[0]-A[0])*t, A[1]+(B[1]-A[1])*t, A[2]+(B[2]-A[2])*t);
+}
+function rgbaKaristir(a,aA,b,bA,t){
+  const c = hexToRgb(renkKaristir(a,b,t));
+  return "rgba(" + c[0] + "," + c[1] + "," + c[2] + "," + (aA + (bA-aA)*t).toFixed(3) + ")";
+}
+function sayiKaristir(a,b,t){ return a + (b-a)*t; }
+function kisitla(v,min,max){ return Math.max(min, Math.min(max, v)); }
+function suAnkiDakika(){
+  const t = new Date();
+  return t.getHours()*60 + t.getMinutes() + t.getSeconds()/60;
+}
+function isoSaatiDakikaya(metin){
+  const m = String(metin).match(/T(\d{2}):(\d{2})/);
+  if(!m) throw new Error("Saat okunamadi: " + metin);
+  return parseInt(m[1],10)*60 + parseInt(m[2],10);
+}
+
+function paletiUygula(a,b,t){
+  t = kisitla(t,0,1);
+  const k = document.documentElement.style;
+  k.setProperty("--sky-top",    renkKaristir(a.skyTop, b.skyTop, t));
+  k.setProperty("--sky-mid",    renkKaristir(a.skyMid, b.skyMid, t));
+  k.setProperty("--sky-bottom", renkKaristir(a.skyBot, b.skyBot, t));
+  k.setProperty("--aura",       rgbaKaristir(a.aura, a.auraA, b.aura, b.auraA, t));
+  k.setProperty("--hill1",      renkKaristir(a.hill1, b.hill1, t));
+  k.setProperty("--hill2",      renkKaristir(a.hill2, b.hill2, t));
+  k.setProperty("--ink",        renkKaristir(a.ink, b.ink, t));
+  k.setProperty("--ink-soft",   renkKaristir(a.inkSoft, b.inkSoft, t));
+  k.setProperty("--paper",      renkKaristir(a.paper, b.paper, t));
+  k.setProperty("--leaf-deep",  renkKaristir(a.leafDeep, b.leafDeep, t));
+  k.setProperty("--cam",        rgbaKaristir(a.cam, a.camA, b.cam, b.camA, t));
+  k.setProperty("--cam-soft",   rgbaKaristir(a.camSoft, a.camSoftA, b.camSoft, b.camSoftA, t));
+  k.setProperty("--kenar",      rgbaKaristir(a.kenar, a.kenarA, b.kenar, b.kenarA, t));
+  k.setProperty("--golge",      rgbaKaristir(a.golge, a.golgeA, b.golge, b.golgeA, t));
+  k.setProperty("--cizgi",      rgbaKaristir(a.cizgi, a.cizgiA, b.cizgi, b.cizgiA, t));
+  k.setProperty("--yildiz",     sayiKaristir(a.yildiz, b.yildiz, t).toFixed(3));
+}
+
+/* Saat -> tema
+   00:00-06:00            Gece
+   06:00-(dogus+60)       Sabah  (kademeli olarak gunduze acilir)
+   (dogus+60)-batis       Gunduz
+   batis-(batis+55dk)     Gun batimi (ikinci yarisinda aksama koyulasir)
+   (batis+55dk)-24:00     Aksam -> Gece (kademeli koyulasma)          */
+function temayiHesapla(dk){
+  const batis = temaDurum.batis;
+  const gbBitis = Math.min(batis + ALACAKARANLIK_DK, 1439.9);
+  const sabahBitis = kisitla(temaDurum.dogus + 60, 361, Math.max(362, batis - 1));
+
+  if(dk < 360)        return { a:PALET.gece,   b:PALET.gece,   t:0 };
+  if(dk < sabahBitis) return { a:PALET.sabah,  b:PALET.gunduz, t:(dk-360)/Math.max(1, sabahBitis-360) };
+  if(dk < batis)      return { a:PALET.gunduz, b:PALET.gunduz, t:0 };
+  if(dk < gbBitis){
+    const ham = (dk - batis) / Math.max(1, gbBitis - batis);
+    return { a:PALET.gunbatimi, b:PALET.aksam, t:kisitla((ham - .45)/.55, 0, 1) };
+  }
+  return { a:PALET.aksam, b:PALET.gece, t:(dk - gbBitis) / Math.max(1, 1440 - gbBitis) };
+}
+
+function temayiGuncelle(){
+  const sonuc = temayiHesapla(suAnkiDakika());
+  paletiUygula(sonuc.a, sonuc.b, sonuc.t);
+}
+
+/* ---------------- Gün doğumu / batımı (API key gerekmez) ----------------
+   Konum izni artık istenmiyor; konum her zaman İstanbul'a sabit. */
+function konumuAl(){
+  return Promise.resolve(VARSAYILAN_KONUM);
+}
+
+async function gunesSaatleriniCek(){
+  try{
+    const konum = await konumuAl();
+    const kontrol = new AbortController();
+    const zamanAsimi = setTimeout(() => kontrol.abort(), 7000);
+    const url = "https://api.open-meteo.com/v1/forecast"
+              + "?latitude="  + konum.lat.toFixed(4)
+              + "&longitude=" + konum.lon.toFixed(4)
+              + "&daily=sunrise,sunset&timezone=auto";
+    const cevap = await fetch(url, { signal: kontrol.signal });
+    clearTimeout(zamanAsimi);
+    if(!cevap.ok) throw new Error("HTTP " + cevap.status);
+    const veri = await cevap.json();
+    const dogus = isoSaatiDakikaya(veri.daily.sunrise[0]);
+    const batis = isoSaatiDakikaya(veri.daily.sunset[0]);
+    if(!(batis > dogus)) throw new Error("Saatler mantiksiz");
+    temaDurum.dogus = dogus;
+    temaDurum.batis = batis;
+  }catch(hata){
+    // internet yok / API yanit vermiyor / veri bozuk -> guvenli varsayilanlar
+    console.warn("Gunes saatleri alinamadi, yedek saatlere gecildi:", hata && hata.message);
+    temaDurum.dogus = YEDEK_DOGUS;
+    temaDurum.batis = YEDEK_BATIS;
+  }finally{
+    temayiGuncelle();
+  }
+}
+
+// /* =========================================================
+//    BAŞARIMLAR
+//    ========================================================= */
+// const BASARIMLAR = [
+//   { kod:"ilk_fidan",   emoji:"🌱", ad:"Toprakla Tanışma",    aciklama:"Bahçeye fidanı sen ektin." },
+//   { kod:"ilk_damla",   emoji:"💧", ad:"İlk Damla",           aciklama:"İlk kez su verdin." },
+//   { kod:"can_kurtaran",emoji:"🚑", ad:"Can Kurtaran",        aciklama:"Su seviyesi %15'in altındayken yetiştin." },
+//   { kod:"gece_kusu",   emoji:"🦉", ad:"Gece Kuşu",           aciklama:"00:00 - 05:00 arasında suladın." },
+//   { kod:"safak",       emoji:"🌅", ad:"Şafak Vakti",         aciklama:"05:00 - 07:00 arasında suladın." },
+//   { kod:"sadik",       emoji:"🌻", ad:"Sadık Bahçıvan",      aciklama:"10 kez suladın." },
+//   { kod:"usta",        emoji:"🚿", ad:"Su Ustası",           aciklama:"25 kez suladın." },
+//   { kod:"efsane",      emoji:"🏅", ad:"Bahçenin Efsanesi",   aciklama:"50 kez suladın." },
+//   { kod:"yedi_gun",    emoji:"📅", ad:"Yedi Gün Yedi Damla", aciklama:"7 farklı günde suladın." },
+//   { kod:"merakli",     emoji:"🔍", ad:"Meraklı Bahçıvan",    aciklama:"Başarım listesini açtın." }
+// ];
+// const BASARIM_YEREL_KEY = "kuzenBahcesiBasarimlar";
+// const GUN_YEREL_KEY     = "kuzenBahcesiSulamaGunleri";
+
+// let benimBasarimlarim = {};            // kod -> kazanma zamani
+// let benimKayit        = { puan:0, sulamaSayisi:0, gunler:{} };
+// let sonSulamaOncesiYuzde = 100;
+// let basarimAkisRef = null;
+// const sayfaAcilisZamani = Date.now();
+
+// function basarimBul(kod){ return BASARIMLAR.find((b) => b.kod === kod) || null; }
+// function bugunAnahtari(){
+//   const t = new Date();
+//   return t.getFullYear() + "-" + String(t.getMonth()+1).padStart(2,"0") + "-" + String(t.getDate()).padStart(2,"0");
+// }
+// function yerelBasarimlariOku(){
+//   try{ return JSON.parse(localStorage.getItem(BASARIM_YEREL_KEY) || "{}") || {}; }
+//   catch(e){ return {}; }
+// }
+// function yerelGunleriOku(){
+//   try{ return JSON.parse(localStorage.getItem(GUN_YEREL_KEY) || "{}") || {}; }
+//   catch(e){ return {}; }
+// }
+
+// /* Bir başarımı kazandır. Zaten varsa hiçbir şey yapmaz (idempotent). */
+// function basarimVer(kod){
+//   if(benimBasarimlarim[kod]) return;
+//   const b = basarimBul(kod);
+//   if(!b) return;
+
+//   const zaman = Date.now();
+//   benimBasarimlarim[kod] = zaman;
+
+//   if(localMode || !usersRef){
+//     const kayit = yerelBasarimlariOku();
+//     kayit[kod] = zaman;
+//     localStorage.setItem(BASARIM_YEREL_KEY, JSON.stringify(kayit));
+//     showAchievementToast(userName || "Sen", b.ad, b.emoji);
+//   }else{
+//     usersRef.child(userId).child("basarimlar").child(kod).set(zaman);
+//     // herkesin ekranında görünmesi için ortak akışa yaz (toast'ı akış tetikler)
+//     firebase.database().ref("kuzenBahcesi/basarimAkisi").push({
+//       kod: kod, isim: userName || "Birisi", kullaniciId: userId, zaman: zaman
+//     });
+//   }
+
+//   const btn = el("basarimBtn");
+//   if(btn && el("basarimModal").classList.contains("hidden")) btn.classList.add("yeniVar");
+//   basarimListesiniCiz(kod);
+// }
+
+// /* Sayaca bağlı başarımlar — kullanıcı kaydı her değiştiğinde çalışır */
+// function basarimSayaclariniKontrolEt(){
+//   const sayi = benimKayit.sulamaSayisi || 0;
+//   if(sayi >= 1)  basarimVer("ilk_damla");
+//   if(sayi >= 10) basarimVer("sadik");
+//   if(sayi >= 25) basarimVer("usta");
+//   if(sayi >= 50) basarimVer("efsane");
+//   const gunSayisi = Object.keys(benimKayit.gunler || {}).length;
+//   if(gunSayisi >= 7) basarimVer("yedi_gun");
+// }
+
+// /* Ana olaylara bağlı başarımlar — sulama / ekim anında çalışır */
+// function basarimOlayKontrol(olay){
+//   if(olay === "ekim"){ basarimVer("ilk_fidan"); return; }
+//   if(olay !== "sulama") return;
+
+//   const saat = new Date().getHours();
+//   if(saat < 5)      basarimVer("gece_kusu");
+//   else if(saat < 7) basarimVer("safak");
+//   if(sonSulamaOncesiYuzde <= 15) basarimVer("can_kurtaran");
+
+//   // sulama yapılan günü işaretle (7 gün başarımı için)
+//   const gun = bugunAnahtari();
+//   if(localMode || !usersRef){
+//     const gunler = yerelGunleriOku();
+//     gunler[gun] = true;
+//     localStorage.setItem(GUN_YEREL_KEY, JSON.stringify(gunler));
+//     benimKayit.gunler = gunler;
+//     benimKayit.sulamaSayisi = (JSON.parse(localStorage.getItem("kuzenBahcesiYerelPuan") || "null") || {}).sulamaSayisi || 0;
+//     basarimSayaclariniKontrolEt();
+//   }else{
+//     usersRef.child(userId).child("gunler").child(gun).set(true);
+//   }
+// }
+
+// /* Başarım listesini modal içine çiz */
+// function basarimListesiniCiz(yeniKod){
+//   const liste = el("basarimListesi");
+//   if(!liste) return;
+
+//   liste.innerHTML = BASARIMLAR.map((b) => {
+//     const kazanildi = !!benimBasarimlarim[b.kod];
+//     const yeni = (yeniKod && yeniKod === b.kod) ? " yeniAcildi" : "";
+//     return '<div class="basarimSatir ' + (kazanildi ? "kazanildi" : "kilitli") + yeni + '">' +
+//              '<span class="sEmoji">' + (kazanildi ? b.emoji : "🔒") + '</span>' +
+//              '<span class="sMetin">' +
+//                '<span class="sAd"></span>' +
+//                '<span class="sAciklama"></span>' +
+//              '</span>' +
+//              '<span class="sDurum">' + (kazanildi ? "Kazanıldı" : "Kilitli") + '</span>' +
+//            '</div>';
+//   }).join("");
+
+//   // metinleri textContent ile yaz (isimler/HTML bozulmasın)
+//   const satirlar = liste.querySelectorAll(".basarimSatir");
+//   BASARIMLAR.forEach((b, i) => {
+//     satirlar[i].querySelector(".sAd").textContent = b.ad;
+//     satirlar[i].querySelector(".sAciklama").textContent = b.aciklama;
+//   });
+
+//   const kazanilan = BASARIMLAR.filter((b) => benimBasarimlarim[b.kod]).length;
+//   el("basarimSayac").textContent = kazanilan + " / " + BASARIMLAR.length;
+//   el("basarimCubukDolu").style.width = Math.round(kazanilan / BASARIMLAR.length * 100) + "%";
+// }
+
+// function basarimlariGoster(){
+//   el("basarimModal").classList.remove("hidden");
+//   el("basarimBtn").classList.remove("yeniVar");
+//   basarimListesiniCiz();
+//   setTimeout(() => basarimVer("merakli"), 600);
+// }
+// function basarimlariGizle(){ el("basarimModal").classList.add("hidden"); }
+
+// /* Firebase dinleyicileri */
+// function basarimlariBaslat(){
+//   if(localMode || !usersRef){
+//     benimBasarimlarim = yerelBasarimlariOku();
+//     benimKayit.gunler = yerelGunleriOku();
+//     benimKayit.sulamaSayisi = (JSON.parse(localStorage.getItem("kuzenBahcesiYerelPuan") || "null") || {}).sulamaSayisi || 0;
+//     el("basarimNot").textContent = "Firebase bağlı değil — başarımların sadece bu tarayıcıda tutuluyor.";
+//     basarimListesiniCiz();
+//     return;
+//   }
+
+//   // kendi kaydım: puan, sulama sayısı, kazanılan başarımlar, sulama günleri
+//   usersRef.child(userId).on("value", (snap) => {
+//     const u = snap.val() || {};
+//     benimKayit.puan = u.puan || 0;
+//     benimKayit.sulamaSayisi = u.sulamaSayisi || 0;
+//     benimKayit.gunler = u.gunler || {};
+//     benimBasarimlarim = Object.assign({}, u.basarimlar || {}, benimBasarimlarim);
+//     basarimListesiniCiz();
+//     basarimSayaclariniKontrolEt();
+//   });
+
+//   // ortak akış: kim ne kazandıysa herkeste toast çıksın
+//   basarimAkisRef = firebase.database().ref("kuzenBahcesi/basarimAkisi").limitToLast(6);
+//   basarimAkisRef.on("child_added", (snap) => {
+//     const v = snap.val();
+//     if(!v || !v.kod) return;
+//     if(!v.zaman || v.zaman < sayfaAcilisZamani - 3000) return; // sayfa açılmadan önceki kayıtları gösterme
+//     const b = basarimBul(v.kod);
+//     if(!b) return;
+//     showAchievementToast(v.isim, b.ad, b.emoji);
+//   });
+
+//   basarimListesiniCiz();
+// }
+
+// /* ---------------- BAŞARIM BİLDİRİMİ ----------------
+//    Kullanım: showAchievementToast("Eray", "Gece Kuşu", "🦉")
+// ---------------------------------------------------- */
+// function showAchievementToast(userName, achievementName, emoji){
+//   const katman = el("toastKatmani");
+//   if(!katman) return;
+//   while(katman.children.length >= 3){ katman.removeChild(katman.firstElementChild); }
+
+//   const kutu = document.createElement("div");
+//   kutu.className = "basarimToast";
+//   kutu.setAttribute("role","status");
+//   kutu.innerHTML =
+//     '<span class="parilti"></span>' +
+//     '<div class="ustSatir">' +
+//       '<span class="kupa">🏆</span>' +
+//       '<span class="ustYazi">Başarım kazanıldı</span>' +
+//       '<button class="kapat" type="button" aria-label="Kapat">✕</button>' +
+//     '</div>' +
+//     '<div class="govde"><span class="bEmoji"></span><span class="bIsim"></span></div>' +
+//     '<div class="bKisi"><b></b> bu başarımı kazandı!</div>' +
+//     '<span class="sure"></span>';
+
+//   kutu.querySelector(".bEmoji").textContent  = emoji || "🏅";
+//   kutu.querySelector(".bIsim").textContent   = (achievementName || "Yeni Başarım").trim();
+//   kutu.querySelector(".bKisi b").textContent = (userName || "Birisi").trim();
+//   katman.appendChild(kutu);
+
+//   if(typeof confetti === "function"){
+//     confetti({
+//       particleCount: 45, spread: 62, startVelocity: 28, scalar: .85, ticks: 140,
+//       origin: { x:.5, y:.16 },
+//       colors: ["#3f8a5b","#8fc79a","#c9962f","#ffffff","#7fd1a4"]
+//     });
+//   }
+
+//   let kapandi = false;
+//   const kapat = () => {
+//     if(kapandi) return;
+//     kapandi = true;
+//     clearTimeout(sayac);
+//     kutu.classList.add("kapaniyor");
+//     setTimeout(() => kutu.remove(), 520);
+//   };
+//   const sayac = setTimeout(kapat, 4000);
+//   kutu.querySelector(".kapat").addEventListener("click", kapat);
+// }
+
+/* ---------------- Başlat ---------------- */
+// el("basarimBtn").addEventListener("click", basarimlariGoster);
+// el("closeBasarimBtn").addEventListener("click", basarimlariGizle);
+// el("basarimModal").addEventListener("click", (e) => { if(e.target.id === "basarimModal") basarimlariGizle(); });
+
+temayiGuncelle();
+gunesSaatleriniCek();
+setInterval(temayiGuncelle, 20000);
+setInterval(gunesSaatleriniCek, 6 * 60 * 60 * 1000);
+
+// basarimlariBaslat();
+// basarimListesiniCiz();
 </script>
 </body>
 </html>
