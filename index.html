@@ -27,7 +27,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito+Sans:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;1,6..12,600&family=Press+Start+2P&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito+Sans:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;1,6..12,600&display=swap" rel="stylesheet">
 
 <style>
   :root{
@@ -138,40 +138,28 @@
     height:min(34vh,270px);
   }
 
-  /* --- konuşma balonu (Undertale tarzı) --- */
-  #speechBubble{
-    display:none;
-    position:absolute;
-    bottom:100%;
-    margin-bottom:14px;
-    max-width:min(78vw,300px);
-    background:var(--paper);
-    border:3px solid var(--ink);
-    border-radius:10px;
-    padding:10px 12px;
-    font-family:'Press Start 2P', monospace;
-    font-size:.6rem;
-    line-height:1.6;
-    color:var(--ink);
-    box-shadow:0 6px 0 rgba(30,40,35,.15);
-    z-index:6;
+  #iyilesmeParilti{
+    position:absolute; pointer-events:none; z-index:5;
+    width:clamp(130px,26vh,210px); aspect-ratio:1; border-radius:50%;
+    transform:translate(-50%,-50%) scale(.4); opacity:0;
+    background:radial-gradient(circle, rgba(120,235,150,.85) 0%, rgba(70,200,110,.45) 38%, rgba(70,200,110,0) 70%);
+    animation:iyilesmeYay 2.4s ease-out forwards;
   }
-  #speechBubble::after{
-    content:'';
-    position:absolute; bottom:-13px; left:32px;
-    width:0; height:0;
-    border-left:9px solid transparent;
-    border-right:9px solid transparent;
-    border-top:13px solid var(--ink);
+  @keyframes iyilesmeYay{
+    0%{ opacity:0; transform:translate(-50%,-50%) scale(.4); }
+    25%{ opacity:1; }
+    100%{ opacity:0; transform:translate(-50%,-50%) scale(1.5); }
   }
-  #speechBubble::before{
-    content:'';
-    position:absolute; bottom:-9px; left:34px;
-    width:0; height:0;
-    border-left:7px solid transparent;
-    border-right:7px solid transparent;
-    border-top:9px solid var(--paper);
-    z-index:1;
+  .iyilesmeIsik{
+    position:absolute; pointer-events:none; z-index:6;
+    width:8px; height:8px; border-radius:50%;
+    background:#7bea9c; box-shadow:0 0 10px #4cd37a;
+    animation:isikYuksel 1.8s ease-out forwards;
+  }
+  @keyframes isikYuksel{
+    0%{ opacity:0; transform:translateY(0) scale(.6); }
+    20%{ opacity:1; }
+    100%{ opacity:0; transform:translateY(-70px) scale(1); }
   }
 
   #plantEmoji{
@@ -526,7 +514,6 @@
 
   <div id="plantArea">
     <div id="plantWrap">
-      <div id="speechBubble"></div>
       <div id="plantEmoji" class="healthy">🌸</div>
       <div class="pot"></div>
     </div>
@@ -575,9 +562,9 @@
 <!-- ===== EK 2/3 — yildiz katmani (tema sistemi icin, aktif kaliyor) ===== -->
 <div id="yildizlar"></div>
 
-<!-- Görev/başarım sistemi devre dışı bırakıldı:
 <div id="toastKatmani" aria-live="polite"></div>
 
+<!-- Görev/başarım sistemi devre dışı bırakıldı:
 <div id="basarimModal" class="modalOverlay hidden">
   <div class="modalCard">
     <div style="font-size:2rem;">&#127942;</div>
@@ -614,60 +601,6 @@ const firebaseConfig = {
   appId: "1:551894005280:web:11825031b3af64627dee45"
 };
 
-// Undertale tarzı 50 sulama diyaloğu
-const DIYALOGLAR = [
-"Ohhh! Serinledim valla, beynime su yürüdü.",
-"Bunu hak etmiştim, sağ ol gardaşım!",
-"Yapraklarım kurumuştu, adamsın!",
-"Güneşin altında kavruluyordum, Hızır gibi yetiştin.",
-"Tam zamanında! Birkaç dakika daha gelmeseydin yapraklarımı teslim ediyordum.",
-"Oh be! Dünya varmış, köklerim bayram etti.",
-"İşte aradığım hizmet! 5 yıldız veriyorum bu sulamaya.",
-"Kana kana içtim, eyvallah!",
-"Gluk gluk gluk... Ahh, kendime geldim!",
-"Şu an hücresel düzeyde bir mutluluk yaşıyorum.",
-"Sonunda ya! Unuttunuz sandım beni bu grupta.",
-"Çok şükür biri beni hatırladı. Grubun neşesiyim ben burada!",
-"Lütfettiniz efendim, gözümüz yollarda kaldı.",
-"İki yudum su verdin diye hemen havalara girme, daha gübrem eksik!",
-"Biraz daha gecikseydin gruptan ayrılıyordum.",
-"Hani aileydik? Saatlerdir su bekliyorum burada!",
-"Diğer kuzenler nerede? Yine iş sana mı kaldı?",
-"Sağ ol ama suyu azıcık soğuk verseydin keşke, şok geçirdim.",
-"Bu su bana 2 saat yeter, sonra yine beklerim.",
-"Nihayet... Bir an beni tamamen unuttunuz sandım.",
-"Köklerime kadar hissettim! Fotosentezin dibine vuracağım şimdi.",
-"Suyu içtim, aniden Türkçe pop söyleyesim geldi.",
-"Teşekkürler! Karşılığında sana bolca oksijen üreteceğim.",
-"Görüyorsunuz, anlatmaya gerek yok... Şırıl şırıl!",
-"Köklerim şahlandı, tutabilene aşk olsun!",
-"Bu su mineralli miydi? Kendimi biraz fazla dinç hissediyorum.",
-"Yaprağımın teki yeşerdi bile, bak bakayım!",
-"Su değil mübarek, yaşam iksiri!",
-"Şimdi gidin ve gruptakilere kralın hâlâ ayakta olduğunu söyleyin.",
-"Oksijen fabrikası yeniden üretime başladı!",
-"Geç olsun güç olmasın dedik de, bu kadar da geç olunmaz ki hemşerim.",
-"Kral geldi, suyumu verdi, gitti. Racon budur.",
-"Gruptaki diğer tembellere ders olsun bu sulama.",
-"Aferin, görevini yaptığına göre gidebilirsin.",
-"Beni sulamayan kuzenlere kırgınım, bunu da böyle bilin.",
-"İşte gerçek dostluk! Diğerleri sadece grupta boş yapsın.",
-"Suyu verdin, borcumu oksijenle ödeyeceğim.",
-"Beni yaşatan adam gibi adam/kadın geldin işte!",
-"Bitki dediysek de taş değiliz yani, susuyoruz!",
-"Bakış açım değişti, şu an dünyayı daha yeşil görüyorum.",
-"İMDAT! Boğuluyorum... Şaka şaka, çok iyi geldi.",
-"Bir an kurudum sanıp miras kavgasına başlayacaktınız değil mi?",
-"Son anda gelen o muhteşem sulama hamlesi!",
-"Gözlerim yaşardı... Yok yok, yaprağıma su sıçramış.",
-"Hızlı suladın, boğazıma kaçtı!",
-"Bu suyu içmeseydim kaktüse dönüşecektim.",
-"Şu an tamamen şarj oldum, yeşil ışığım yanıyor.",
-"Grubun en vizyoner üyesi sensin, net.",
-"Köklerimden gelen bir ses 'daha fazla su' diyor ama neyse.",
-"Hayat öpücüğü gibi geldi. Teşekkürler patron!"
-];
-
 /* =========================================================
    DURUM
    ========================================================= */
@@ -682,7 +615,10 @@ if(!userId){
   localStorage.setItem(ID_KEY, userId);
 }
 let sonHesaplananYuzde = 100;
-let typewriterTimer = null;
+const IYILESME_KEY = "kuzenBahcesiGirisIyilesme";
+let girisEfekti = "bekliyor";
+try{ if(localStorage.getItem(IYILESME_KEY)) girisEfekti = "bitti"; }catch(e){}
+let suYenilemeDevam = false;
 
 const el = (id) => document.getElementById(id);
 
@@ -860,6 +796,61 @@ function konfetiPatlat(){
 }
 
 /* =========================================================
+   OTOMATİK SU YENİLEME
+   ========================================================= */
+function rastgeleSulayanIsmi(){
+  return new Promise((coz) => {
+    const yedek = userName || "Bir kuzen";
+    if(localMode || !usersRef){ coz(yedek); return; }
+    usersRef.limitToLast(50).once("value").then((snap) => {
+      const isimler = [];
+      snap.forEach((cs) => { const v = cs.val(); if(v && v.isim) isimler.push(v.isim); });
+      coz(isimler.length ? isimler[Math.floor(Math.random() * isimler.length)] : yedek);
+    }).catch(() => coz(yedek));
+  });
+}
+
+async function suSeviyesiniYenile(){
+  if(suYenilemeDevam) return;
+  suYenilemeDevam = true;
+  const isim = await rastgeleSulayanIsmi();
+
+  if(localMode){
+    currentState.lastWateredAt = Date.now();
+    currentState.lastWateredBy = isim;
+    currentState.totalWaterings = (currentState.totalWaterings || 0) + 1;
+    currentState.isDead = false;
+    currentState.deathAt = null;
+    bitkiDurumunuKaydet();
+    suYenilemeDevam = false;
+    return;
+  }
+
+  plantRef.transaction((cur) => {
+    if(!cur || !cur.isPlanted) return;
+    const yuzde = anlikSuYuzdesi({ isDead:false, lastWateredAt: cur.lastWateredAt });
+    if(!cur.isDead && yuzde > 0) return;
+    cur.lastWateredAt = Date.now();
+    cur.lastWateredBy = isim;
+    cur.totalWaterings = (cur.totalWaterings || 0) + 1;
+    cur.isDead = false;
+    cur.deathAt = null;
+    return cur;
+  }, (err, committed, snap) => {
+    if(committed){
+      const data = snap.val();
+      currentState.lastWateredAt = data.lastWateredAt;
+      currentState.lastWateredBy = data.lastWateredBy;
+      currentState.totalWaterings = data.totalWaterings || 0;
+      currentState.isDead = false;
+      currentState.deathAt = null;
+    }
+    suYenilemeDevam = false;
+    guncelleGorunum();
+  });
+}
+
+/* =========================================================
    BİTKİ SULAMA
    Kritik güvenlik notu: kontrol artık istemcideki (client-side) bayat
    bir değere değil, Firebase transaction'ı sırasında SUNUCUDAKİ gerçek
@@ -870,7 +861,7 @@ function konfetiPatlat(){
 function bitkiyiSula(){
   if(!userName){ modaliGoster(); return; }
   if(!veriYuklendiMi) return;
-  if(!currentState.isPlanted || currentState.isDead) return;
+  if(!currentState.isPlanted) return;
   // sonSulamaOncesiYuzde = anlikSuYuzdesi(currentState); // görev/başarım sistemi devre dışı
 
   if(localMode){
@@ -890,13 +881,15 @@ function bitkiyiSula(){
 
   el("waterBtn").disabled = true; // spam tıklamayı anında görsel olarak da engelle
   plantRef.transaction((cur) => {
-    if(!cur || !cur.isPlanted || cur.isDead) return; // abort — ekili değil / ölü
+    if(!cur || !cur.isPlanted) return; // abort — ekili değil
     const yuzdeDb = anlikSuYuzdesi({ isDead:false, lastWateredAt: cur.lastWateredAt });
     if(yuzdeDb >= MAX_WATER_YUZDE) return; // abort — DB'ye göre zaten yeterince sulu
     cur.lastWateredAt = Date.now();
     cur.lastWateredBy = userName;
     cur.totalWaterings = (cur.totalWaterings || 0) + 1;
     if(!cur.bornAt) cur.bornAt = Date.now();
+    cur.isDead = false;
+    cur.deathAt = null;
     return cur;
   }, (err, committed, snap) => {
     if(committed){
@@ -904,6 +897,7 @@ function bitkiyiSula(){
       currentState.lastWateredAt = data.lastWateredAt;
       currentState.lastWateredBy = data.lastWateredBy;
       currentState.totalWaterings = data.totalWaterings || 0;
+      currentState.isDead = false;
       currentState.bornAt = data.bornAt || currentState.bornAt;
       damlaEfekti();
       kullaniciPuaniKaydet();
@@ -928,26 +922,77 @@ function damlaEfekti(){
 }
 
 /* =========================================================
-   DAKTİLO DİYALOG
+   BİLDİRİM (toast)
    ========================================================= */
-function rastgeleDiyalogGoster(){
-  const metin = DIYALOGLAR[Math.floor(Math.random()*DIYALOGLAR.length)];
-  daktiloYaz(metin);
+function bildirimGoster(mesaj, emoji, sureMs){
+  const katman = el("toastKatmani");
+  if(!katman) return;
+  sureMs = sureMs || 5000;
+  while(katman.children.length >= 3){ katman.removeChild(katman.firstElementChild); }
+
+  const kutu = document.createElement("div");
+  kutu.className = "basarimToast";
+  kutu.setAttribute("role","status");
+  kutu.innerHTML =
+    '<span class="parilti"></span>' +
+    '<div class="ustSatir">' +
+      '<span class="kupa">🌿</span>' +
+      '<span class="ustYazi">Bahçeden haber var</span>' +
+      '<button class="kapat" type="button" aria-label="Kapat">✕</button>' +
+    '</div>' +
+    '<div class="govde"><span class="bEmoji"></span><span class="bIsim"></span></div>' +
+    '<span class="sure"></span>';
+
+  kutu.querySelector(".bEmoji").textContent = emoji || "🌸";
+  kutu.querySelector(".bIsim").textContent  = mesaj;
+  kutu.querySelector(".sure").style.animationDuration = sureMs + "ms";
+  katman.appendChild(kutu);
+
+  if(typeof confetti === "function"){
+    confetti({
+      particleCount: 45, spread: 62, startVelocity: 28, scalar: .85, ticks: 140,
+      origin: { x:.5, y:.16 },
+      colors: ["#3f8a5b","#8fc79a","#7fd1a4","#ffffff"]
+    });
+  }
+
+  let kapandi = false;
+  const kapat = () => {
+    if(kapandi) return;
+    kapandi = true;
+    clearTimeout(sayac);
+    kutu.classList.add("kapaniyor");
+    setTimeout(() => kutu.remove(), 520);
+  };
+  const sayac = setTimeout(kapat, sureMs);
+  kutu.querySelector(".kapat").addEventListener("click", kapat);
 }
-function daktiloYaz(metin){
-  const bubble = el("speechBubble");
-  if(typewriterTimer) clearInterval(typewriterTimer);
-  bubble.style.display = "block";
-  bubble.textContent = "";
-  let i = 0;
-  typewriterTimer = setInterval(() => {
-    bubble.textContent += metin[i];
-    i++;
-    if(i >= metin.length){
-      clearInterval(typewriterTimer);
-      typewriterTimer = setTimeout(() => { bubble.style.display = "none"; }, 3200);
-    }
-  }, 32);
+
+/* =========================================================
+   GİRİŞ EFEKTİ (kullanıcı başına bir kez)
+   ========================================================= */
+function iyilesmeEfekti(){
+  const wrap = el("plantWrap"), emoji = el("plantEmoji");
+  const cx = emoji.offsetLeft + emoji.offsetWidth / 2;
+  const cy = emoji.offsetTop + emoji.offsetHeight / 2;
+
+  const glow = document.createElement("div");
+  glow.id = "iyilesmeParilti";
+  glow.style.left = cx + "px";
+  glow.style.top = cy + "px";
+  wrap.appendChild(glow);
+
+  const isiklar = [];
+  for(let i = 0; i < 9; i++){
+    const p = document.createElement("span");
+    p.className = "iyilesmeIsik";
+    p.style.left = (cx + (Math.random() - .5) * emoji.offsetWidth * 1.1) + "px";
+    p.style.top  = (cy + (Math.random() - .1) * emoji.offsetHeight * .6) + "px";
+    p.style.animationDelay = (Math.random() * .6) + "s";
+    wrap.appendChild(p);
+    isiklar.push(p);
+  }
+  setTimeout(() => { glow.remove(); isiklar.forEach((p) => p.remove()); }, 2800);
 }
 
 /* =========================================================
@@ -999,7 +1044,18 @@ function guncelleGorunum(){
   el("waterPct").style.display = "";
   el("infoCard").style.display = "";
 
-  if(currentState.isDead){
+  if(girisEfekti === "bekliyor" && userName){
+    girisEfekti = "olu";
+    setTimeout(() => {
+      girisEfekti = "bitti";
+      try{ localStorage.setItem(IYILESME_KEY, "1"); }catch(e){}
+      guncelleGorunum();
+      iyilesmeEfekti();
+      bildirimGoster("Çiçek, bir bitki sever (Eray) tarafından iyileştirildi.", "🌸", 5000);
+    }, 1000);
+  }
+
+  if(girisEfekti === "olu"){
     sonHesaplananYuzde = 0;
     el("waterBarFill").style.width = "0%";
     el("waterPct").textContent = "%0 su seviyesi";
@@ -1016,13 +1072,7 @@ function guncelleGorunum(){
     const yuzde = anlikSuYuzdesi(currentState);
     sonHesaplananYuzde = yuzde;
 
-    // kalıcı ölüm kontrolü — sadece bir kere tetiklenir
-    if(yuzde <= 0 && !currentState.isDead){
-      currentState.isDead = true;
-      currentState.deathAt = Date.now();
-      bitkiDurumunuKaydet();
-      return; // bir sonraki döngüde yukarıdaki "isDead" dalı çalışacak
-    }
+    if(yuzde <= 0) suSeviyesiniYenile();
 
     bar.style.width = yuzde + "%";
     el("waterPct").textContent = "%" + yuzde + " su seviyesi";
@@ -1068,9 +1118,8 @@ function guncelleGorunum(){
 
   // hayatta kalınan gün sayısı
   if(currentState.bornAt){
-    const bitisNoktasi = currentState.isDead && currentState.deathAt ? currentState.deathAt : Date.now();
-    const gunSayisi = Math.floor((bitisNoktasi - currentState.bornAt) / (24*60*60*1000));
-    el("aliveDays").textContent = (currentState.isDead ? "🪦 Yaşadığı süre: " : "🌞 Hayatta: ") + gunSayisi + " gün";
+    const gunSayisi = Math.floor((Date.now() - currentState.bornAt) / (24*60*60*1000));
+    el("aliveDays").textContent = "🌞 Hayatta: " + gunSayisi + " gün";
   } else {
     el("aliveDays").textContent = "🌞 Hayatta: 0 gün";
   }
@@ -1528,53 +1577,6 @@ async function gunesSaatleriniCek(){
 //   });
 
 //   basarimListesiniCiz();
-// }
-
-// /* ---------------- BAŞARIM BİLDİRİMİ ----------------
-//    Kullanım: showAchievementToast("Eray", "Gece Kuşu", "🦉")
-// ---------------------------------------------------- */
-// function showAchievementToast(userName, achievementName, emoji){
-//   const katman = el("toastKatmani");
-//   if(!katman) return;
-//   while(katman.children.length >= 3){ katman.removeChild(katman.firstElementChild); }
-
-//   const kutu = document.createElement("div");
-//   kutu.className = "basarimToast";
-//   kutu.setAttribute("role","status");
-//   kutu.innerHTML =
-//     '<span class="parilti"></span>' +
-//     '<div class="ustSatir">' +
-//       '<span class="kupa">🏆</span>' +
-//       '<span class="ustYazi">Başarım kazanıldı</span>' +
-//       '<button class="kapat" type="button" aria-label="Kapat">✕</button>' +
-//     '</div>' +
-//     '<div class="govde"><span class="bEmoji"></span><span class="bIsim"></span></div>' +
-//     '<div class="bKisi"><b></b> bu başarımı kazandı!</div>' +
-//     '<span class="sure"></span>';
-
-//   kutu.querySelector(".bEmoji").textContent  = emoji || "🏅";
-//   kutu.querySelector(".bIsim").textContent   = (achievementName || "Yeni Başarım").trim();
-//   kutu.querySelector(".bKisi b").textContent = (userName || "Birisi").trim();
-//   katman.appendChild(kutu);
-
-//   if(typeof confetti === "function"){
-//     confetti({
-//       particleCount: 45, spread: 62, startVelocity: 28, scalar: .85, ticks: 140,
-//       origin: { x:.5, y:.16 },
-//       colors: ["#3f8a5b","#8fc79a","#c9962f","#ffffff","#7fd1a4"]
-//     });
-//   }
-
-//   let kapandi = false;
-//   const kapat = () => {
-//     if(kapandi) return;
-//     kapandi = true;
-//     clearTimeout(sayac);
-//     kutu.classList.add("kapaniyor");
-//     setTimeout(() => kutu.remove(), 520);
-//   };
-//   const sayac = setTimeout(kapat, 4000);
-//   kutu.querySelector(".kapat").addEventListener("click", kapat);
 // }
 
 /* ---------------- Başlat ---------------- */
