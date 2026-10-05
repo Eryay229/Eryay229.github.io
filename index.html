@@ -5,34 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>9/F'nin Bahçesi 🌱</title>
 
-<!--
-  ========================= KURULUM NOTU =========================
-  Bu sayfanın herkeste AYNI ANDA çalışması (canlı senkronizasyon,
-  puanlar, liderlik tablosu) için Firebase Realtime Database kullanılıyor.
-
-  1) https://console.firebase.google.com adresinden ücretsiz bir proje aç.
-  2) Sol menüden "Build > Realtime Database" -> "Create Database".
-  3) Proje ayarları (⚙️ > Project settings) sayfasındaki "Web app" bilgilerini
-     aşağıdaki firebaseConfig içine yapıştır.
-  4) Realtime Database > Rules sekmesinden okuma/yazmayı aç:
-     { "rules": { ".read": true, ".write": true } }
-     (Küçük bir aile/kuzen eğlencesi olduğu için bu yeterli.)
-
-  Config doldurulmazsa sayfa "yerel mod"da çalışır: bitki ve puanlar sadece
-  bu tarayıcıda yaşar, liderlik tablosu ve senkronizasyon çalışmaz.
-  ==================================================================
--->
-
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito+Sans:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;1,6..12,600&display=swap" rel="stylesheet">
 
 <style>
+  /* Tema 12:00'ye (gündüz) sabitlendi — tüm renkler sabit */
   :root{
-    --sky-top:#eaf6f0;
-    --sky-bottom:#dcecfb;
+    --sky-top:#dff3ea;
+    --sky-mid:#cfe9f7;
+    --sky-bottom:#eaf6f0;
+    --aura:rgba(168,220,192,.5);
+    --hill1:#8fc79a;
+    --hill2:#c9e6cf;
+    --cam:rgba(255,255,255,.85);
+    --cam-soft:rgba(255,255,255,.72);
+    --kenar:rgba(255,255,255,.9);
+    --golge:rgba(30,60,40,.16);
+    --cizgi:rgba(60,80,70,.18);
+
     --leaf-deep:#2f6b45;
     --leaf:#3f8a5b;
     --leaf-light:#8fc79a;
@@ -52,7 +42,9 @@
     height:100%;
     margin:0;
     overflow:hidden;
-    background:linear-gradient(180deg, var(--sky-top) 0%, var(--sky-bottom) 100%);
+    background:
+      radial-gradient(120% 68% at 76% 14%, var(--aura) 0%, rgba(0,0,0,0) 62%),
+      linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 56%, var(--sky-bottom) 100%);
     font-family:'Nunito Sans', sans-serif;
     color:var(--ink);
     -webkit-tap-highlight-color:transparent;
@@ -66,46 +58,27 @@
     flex-direction:column;
     align-items:center;
     justify-content:space-between;
-    padding: clamp(8px,2.6vh,22px) clamp(14px,4vw,32px);
+    padding: clamp(14px,4vh,34px) clamp(14px,4vw,32px) clamp(8px,2.6vh,22px);
     position:relative;
+  }
+  #stage.titre{ animation:titre .5s linear; }
+  @keyframes titre{
+    0%,100%{ transform:translate(0,0); }
+    10%{ transform:translate(-9px,6px); }
+    25%{ transform:translate(8px,-7px); }
+    40%{ transform:translate(-7px,-5px); }
+    55%{ transform:translate(6px,6px); }
+    70%{ transform:translate(-4px,3px); }
+    85%{ transform:translate(3px,-2px); }
   }
 
   .hill{
     position:absolute; bottom:0; left:0; right:0; height:22vh;
-    background:var(--leaf-light);
+    background:var(--hill1);
     border-radius:50% 50% 0 0 / 100% 100% 0 0;
     transform:scale(1.6,1); opacity:.5; z-index:0;
   }
-  .hill.back{ height:16vh; background:#c9e6cf; transform:scale(1.9,1) translateY(6%); opacity:.55; }
-
-  #topBar{
-    width:100%; max-width:420px;
-    display:flex; align-items:center; justify-content:space-between;
-    gap:8px; z-index:20; margin-bottom:2px;
-  }
-  #scoreBadge{
-    background:rgba(255,255,255,.85); backdrop-filter:blur(4px);
-    border-radius:999px; padding:6px 10px;
-    font-family:'Fredoka',sans-serif; font-weight:600; font-size:.78rem;
-    color:var(--gold); box-shadow:0 3px 8px rgba(30,60,40,.15);
-    display:flex; align-items:center; gap:4px;
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-    max-width:46%; flex-shrink:1;
-    cursor:pointer; user-select:none; transition:transform .12s ease;
-  }
-  #scoreBadge:active{ transform:scale(.96); }
-  #scoreBadge span.name{
-    color:var(--ink-soft); font-weight:600; font-size:.7rem;
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  }
-
-  #leaderBtn{
-    background:rgba(255,255,255,.85); backdrop-filter:blur(4px);
-    border:none; border-radius:999px; padding:7px 11px;
-    font-family:'Fredoka',sans-serif; font-weight:600; font-size:.76rem;
-    color:var(--ink); box-shadow:0 3px 8px rgba(30,60,40,.15);
-    cursor:pointer; white-space:nowrap; flex-shrink:0;
-  }
+  .hill.back{ height:16vh; background:var(--hill2); transform:scale(1.9,1) translateY(6%); opacity:.55; }
 
   header{ text-align:center; z-index:2; margin-top:2px; }
   header h1{
@@ -113,17 +86,10 @@
     color:var(--leaf-deep); margin:0 0 2px 0;
   }
   header p{ margin:0; font-size:clamp(.7rem,2.2vw,.85rem); color:var(--ink-soft); }
-
   #aliveDays{
     display:inline-block; margin-top:6px;
-    background:rgba(255,255,255,.7); border-radius:999px;
+    background:var(--cam-soft); border-radius:999px;
     padding:4px 12px; font-size:.75rem; font-weight:700; color:var(--leaf-deep);
-  }
-
-  #localWarning{
-    display:none; background:#fff4dd; border:1.5px solid var(--amber);
-    color:#7a5312; font-size:.72rem; padding:5px 12px; border-radius:14px;
-    max-width:92vw; text-align:center; z-index:3; margin-top:4px;
   }
 
   #plantArea{
@@ -131,51 +97,20 @@
     display:flex; flex-direction:column; align-items:center; justify-content:center;
     position:relative; z-index:2; min-height:0;
   }
-
   #plantWrap{
     position:relative; display:flex; flex-direction:column;
     align-items:center; justify-content:flex-end;
     height:min(34vh,270px);
-  }
-
-  #iyilesmeParilti{
-    position:absolute; pointer-events:none; z-index:5;
-    width:clamp(130px,26vh,210px); aspect-ratio:1; border-radius:50%;
-    transform:translate(-50%,-50%) scale(.4); opacity:0;
-    background:radial-gradient(circle, rgba(120,235,150,.85) 0%, rgba(70,200,110,.45) 38%, rgba(70,200,110,0) 70%);
-    animation:iyilesmeYay 2.4s ease-out forwards;
-  }
-  @keyframes iyilesmeYay{
-    0%{ opacity:0; transform:translate(-50%,-50%) scale(.4); }
-    25%{ opacity:1; }
-    100%{ opacity:0; transform:translate(-50%,-50%) scale(1.5); }
-  }
-  .iyilesmeIsik{
-    position:absolute; pointer-events:none; z-index:6;
-    width:8px; height:8px; border-radius:50%;
-    background:#7bea9c; box-shadow:0 0 10px #4cd37a;
-    animation:isikYuksel 1.8s ease-out forwards;
-  }
-  @keyframes isikYuksel{
-    0%{ opacity:0; transform:translateY(0) scale(.6); }
-    20%{ opacity:1; }
-    100%{ opacity:0; transform:translateY(-70px) scale(1); }
+    width:200px;
   }
 
   #plantEmoji{
     font-size:clamp(3.4rem,15vh,7rem); line-height:1;
     filter:drop-shadow(0 10px 14px rgba(30,60,40,.18));
-    transition:transform .4s ease, filter .5s ease;
     transform-origin:bottom center;
+    animation: sway 4.5s ease-in-out infinite;
   }
-  #plantEmoji.healthy{ animation: sway 4.5s ease-in-out infinite; }
-  #plantEmoji.thirsty{ animation: sway-slow 6s ease-in-out infinite; filter:drop-shadow(0 10px 14px rgba(30,60,40,.18)) saturate(.75) brightness(.95); }
-  #plantEmoji.critical{ animation: wilt-shake 3.2s ease-in-out infinite; filter:drop-shadow(0 10px 14px rgba(30,60,40,.18)) saturate(.5) brightness(.85); }
-  #plantEmoji.dead{ animation:none; filter:grayscale(1) brightness(.75); transform:rotate(-6deg); }
-
   @keyframes sway{ 0%,100%{transform:rotate(-3deg);} 50%{transform:rotate(3deg);} }
-  @keyframes sway-slow{ 0%,100%{transform:rotate(-2deg);} 50%{transform:rotate(2deg);} }
-  @keyframes wilt-shake{ 0%,100%{transform:rotate(-1deg);} 50%{transform:rotate(1deg) translateY(2px);} }
 
   .pot{
     width:clamp(74px,19vh,116px); height:clamp(44px,11vh,66px);
@@ -191,28 +126,28 @@
 
   #waterBarOuter{
     width:100%; max-width:300px; height:18px;
-    background:#e4ede6; border:2px solid #ffffff; border-radius:999px;
+    background:var(--cam-soft); border:2px solid var(--kenar); border-radius:999px;
     box-shadow:0 2px 6px rgba(30,60,40,.12), inset 0 1px 2px rgba(0,0,0,.06);
     overflow:hidden; margin-top:12px;
   }
   #waterBarFill{
-    height:100%; width:100%; border-radius:999px;
+    height:100%; width:87%; border-radius:999px;
     background:linear-gradient(90deg, var(--water) 0%, #4fb0e0 100%);
-    transition:width .6s ease, background .6s ease;
   }
   #waterPct{ font-size:.76rem; color:var(--ink-soft); margin-top:4px; font-weight:600; }
 
   #statusLine{ margin-top:10px; text-align:center; min-height:2.2em; }
-  #statusLine .title{ font-family:'Fredoka',sans-serif; font-size:clamp(1rem,3.4vw,1.25rem); font-weight:600; }
+  #statusLine .title{ font-family:'Fredoka',sans-serif; font-size:clamp(1rem,3.4vw,1.25rem); font-weight:600; color:var(--leaf-deep); }
   #statusLine .sub{ font-size:.76rem; color:var(--ink-soft); margin-top:2px; }
 
   #infoCard{
     width:100%; max-width:340px;
-    background:rgba(255,255,255,.72); backdrop-filter:blur(6px);
+    background:var(--cam-soft); backdrop-filter:blur(6px);
+    box-shadow:0 4px 14px var(--golge);
     border-radius:18px; padding:8px 16px; margin-top:8px; z-index:2; font-size:.78rem;
   }
   #infoCard .row{ display:flex; justify-content:space-between; padding:3px 0; }
-  #infoCard .row + .row{ border-top:1px dashed rgba(60,80,70,.18); }
+  #infoCard .row + .row{ border-top:1px dashed var(--cizgi); }
   #infoCard .label{ color:var(--ink-soft); }
   #infoCard .value{ font-weight:700; color:var(--leaf-deep); text-align:right; }
 
@@ -225,27 +160,9 @@
     transition:transform .12s ease, box-shadow .12s ease;
     z-index:2; user-select:none; touch-action:manipulation;
   }
-  #waterBtn:active:not(:disabled){ transform:translateY(5px); box-shadow:0 1px 0 #17547e, 0 4px 10px rgba(20,60,90,.2); }
-  #waterBtn:disabled{
-    opacity:.6; cursor:default;
-    box-shadow:0 6px 0 #b9c3c0, 0 10px 18px rgba(20,60,90,.12);
-    background:linear-gradient(160deg,#9fb3ac,#7c8f88);
-  }
-  #waterBtn.deadBtn:disabled{ background:linear-gradient(160deg,#8a8a8a,#5c5c5c); box-shadow:0 6px 0 #4a4a4a, 0 10px 18px rgba(0,0,0,.2); }
+  #waterBtn:active{ transform:translateY(5px); box-shadow:0 1px 0 #17547e, 0 4px 10px rgba(20,60,90,.2); }
 
-  footer{ font-size:.7rem; color:var(--ink-soft); opacity:.8; z-index:2; text-align:center; }
-
-  .droplet{
-    position:absolute; font-size:1.15rem; pointer-events:none;
-    animation: drop-fall 0.9s ease-in forwards; z-index:5;
-  }
-  @keyframes drop-fall{
-    0%{ transform:translateY(-10px) scale(.6); opacity:0; }
-    20%{ opacity:1; }
-    100%{ transform:translateY(70px) scale(1); opacity:0; }
-  }
-
-  /* --- modallar (isim + liderlik) --- */
+  /* --- onay modalı --- */
   .modalOverlay{
     position:fixed; inset:0; background:rgba(20,35,28,.55);
     display:flex; align-items:center; justify-content:center; z-index:50; padding:20px;
@@ -254,244 +171,157 @@
   .modalCard{
     background:var(--paper); border-radius:22px; padding:22px 22px;
     max-width:340px; width:100%; text-align:center;
-    box-shadow:0 20px 40px rgba(20,30,25,.25);
-    max-height:80vh; overflow-y:auto;
+    box-shadow:0 20px 44px var(--golge);
   }
-  .modalCard h2{ font-size:1.2rem; margin:6px 0 4px 0; color:var(--leaf-deep); }
-  .modalCard p{ font-size:.82rem; color:var(--ink-soft); margin:0 0 14px 0; }
-  #nameInput{
-    width:100%; padding:11px 14px; border-radius:12px; border:2px solid #d7e4dc;
-    font-size:1rem; font-family:inherit; outline:none; margin-bottom:12px;
+  .modalCard .soru{
+    font-family:'Fredoka',sans-serif; font-weight:500; font-size:1.05rem;
+    line-height:1.45; color:var(--ink); margin:6px 0 18px 0;
   }
-  #nameInput:focus{ border-color:var(--leaf); }
+  .evetSatir{ display:flex; gap:10px; }
   .primaryBtn{
-    width:100%; font-family:'Fredoka',sans-serif; font-weight:600; font-size:1rem; color:#fff;
+    font-family:'Fredoka',sans-serif; font-weight:600; font-size:1rem; color:#fff;
     background:linear-gradient(160deg, var(--leaf) 0%, var(--leaf-deep) 100%);
     border:none; padding:12px; border-radius:12px; cursor:pointer;
+    flex:1; touch-action:manipulation;
   }
-  #closeLeaderBtn{ margin-top:14px; background:#e7eeea; color:var(--ink); }
-
-  #leaderList{ text-align:left; }
-  .leaderRow{
-    display:flex; align-items:center; gap:8px;
-    padding:7px 6px; border-radius:10px; font-size:.85rem;
-  }
-  .leaderRow:nth-child(odd){ background:rgba(63,138,91,.07); }
-  .leaderRow .rank{ font-weight:700; color:var(--leaf-deep); width:22px; text-align:center; }
-  .leaderRow .lname{ flex:1; font-weight:600; }
-  .leaderRow .lpuan{ font-weight:700; color:var(--gold); }
-  .leaderRow .lsayi{ font-size:.7rem; color:var(--ink-soft); margin-left:4px; }
-
-  ::selection{ background:var(--leaf-light); }
+  .primaryBtn:active{ transform:scale(.97); }
 
   /* =========================================================
-     EK 1/3 — DİNAMİK TEMA + BAŞARIM BİLDİRİMİ + BAŞARIM MODALI (CSS)
-     Bu blok en altta olduğu için üstteki :root değerlerini ezer.
+     BOMBA + PATLAMA
      ========================================================= */
-  :root{
-    /* tema motorunun canlı güncellediği değişkenler */
-    --sky-top:#dff3ea;
-    --sky-mid:#cfe9f7;
-    --sky-bottom:#eaf6f0;
-    --aura:rgba(168,220,192,.5);
-    --hill1:#8fc79a;
-    --hill2:#c9e6cf;
-    --cam:rgba(255,255,255,.85);
-    --cam-soft:rgba(255,255,255,.72);
-    --kenar:rgba(255,255,255,.9);
-    --golge:rgba(30,60,40,.16);
-    --cizgi:rgba(60,80,70,.18);
-    --yildiz:0;
+  .bomba{
+    position:fixed; left:0; top:0; z-index:100; pointer-events:none;
+    font-size:3.4rem; line-height:1; will-change:transform;
+    filter:drop-shadow(0 8px 8px rgba(0,0,0,.3));
   }
 
-  html,body{
-    background:
-      radial-gradient(120% 68% at 76% 14%, var(--aura) 0%, rgba(0,0,0,0) 62%),
-      linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 56%, var(--sky-bottom) 100%);
+  .flas{
+    position:fixed; inset:0; z-index:85; pointer-events:none;
+    background:#fff; opacity:0; animation:flas .55s ease-out forwards;
+  }
+  @keyframes flas{ 0%{opacity:.95;} 100%{opacity:0;} }
+
+  .patlama{ position:fixed; z-index:90; width:0; height:0; pointer-events:none; }
+  .patlama > *{ position:absolute; pointer-events:none; }
+
+  .ates{
+    left:-55px; top:-55px; width:110px; height:110px; border-radius:50%;
+    background:radial-gradient(circle,#fff 0%,#ffe27a 24%,#ff9a1f 50%,#e8431a 72%,rgba(232,67,26,0) 100%);
+    animation:atesBuyu 1.1s ease-out forwards;
+  }
+  @keyframes atesBuyu{
+    0%{ transform:scale(.1); opacity:1; }
+    35%{ transform:scale(2.3); opacity:1; }
+    100%{ transform:scale(3.8); opacity:0; }
+  }
+  .halka{
+    left:-50px; top:-50px; width:100px; height:100px; border-radius:50%;
+    border:6px solid rgba(255,235,170,.95);
+    animation:halkaYay .85s ease-out forwards;
+  }
+  @keyframes halkaYay{
+    0%{ transform:scale(.2); opacity:1; }
+    100%{ transform:scale(4.6); opacity:0; }
+  }
+  .patlamaEmoji{
+    left:0; top:0; font-size:5.5rem; line-height:1;
+    animation:emojiPat .95s ease-out forwards;
+  }
+  @keyframes emojiPat{
+    0%{ transform:translate(-50%,-50%) scale(.2); opacity:1; }
+    40%{ transform:translate(-50%,-50%) scale(1.3); opacity:1; }
+    100%{ transform:translate(-50%,-50%) scale(1.8); opacity:0; }
+  }
+  .parca{
+    left:0; top:0; border-radius:2px;
+    animation:parcaUc 1.25s cubic-bezier(.15,.7,.3,1) forwards;
+  }
+  .petal{ line-height:1; }
+  @keyframes parcaUc{
+    0%{ transform:translate(-50%,-50%) rotate(0) scale(1); opacity:1; }
+    45%{ transform:translate(calc(-50% + var(--dx)*.75), calc(-50% + var(--dy)*.75 - 34px)) rotate(calc(var(--rot)*.5)) scale(1); opacity:1; }
+    100%{ transform:translate(calc(-50% + var(--dx)), calc(-50% + var(--dy) + 90px)) rotate(var(--rot)) scale(.6); opacity:0; }
+  }
+  .duman{
+    left:-30px; top:-30px; width:60px; height:60px; border-radius:50%;
+    background:rgba(70,70,70,.55); filter:blur(7px);
+    animation:dumanCik 1.4s ease-out forwards; opacity:0;
+  }
+  @keyframes dumanCik{
+    0%{ transform:translate(0,0) scale(.4); opacity:0; }
+    20%{ opacity:.7; }
+    100%{ transform:translate(var(--sx),-70px) scale(2.4); opacity:0; }
   }
 
-  /* gece yıldızları */
-  #yildizlar{
-    position:fixed; inset:0; pointer-events:none; z-index:1;
-    opacity:var(--yildiz);
-    background-image:
-      radial-gradient(1.6px 1.6px at 12% 14%, #fff 50%, transparent 51%),
-      radial-gradient(1.3px 1.3px at 26% 33%, #fff 50%, transparent 51%),
-      radial-gradient(1.8px 1.8px at 44% 9%,  #fff 50%, transparent 51%),
-      radial-gradient(1.2px 1.2px at 59% 26%, #fff 50%, transparent 51%),
-      radial-gradient(1.7px 1.7px at 78% 17%, #fff 50%, transparent 51%),
-      radial-gradient(1.3px 1.3px at 90% 38%, #fff 50%, transparent 51%),
-      radial-gradient(1.5px 1.5px at 7% 44%,  #fff 50%, transparent 51%),
-      radial-gradient(1.2px 1.2px at 35% 52%, #fff 50%, transparent 51%),
-      radial-gradient(1.6px 1.6px at 68% 47%, #fff 50%, transparent 51%),
-      radial-gradient(1.1px 1.1px at 52% 62%, #fff 50%, transparent 51%);
-    transition:opacity .9s ease;
+  /* =========================================================
+     MEKTUP
+     ========================================================= */
+  .mektupKap{
+    position:fixed; z-index:200; width:150px; height:100px; margin-left:-75px;
+    animation:mektupYuz 2.4s ease-in-out .9s infinite;
   }
+  .mektupKap.acik, .mektupKap.animYok{ animation:none; }
+  .mektupKap.animYok .mektup{ animation:none; }
+  .mektupOlcek{
+    width:150px; height:100px;
+    transform:scale(var(--s,1)); transform-origin:50% 100%;
+  }
+  @keyframes mektupYuz{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-6px); } }
 
-  /* sabit beyaz yüzeyler artık temayla birlikte değişiyor */
-  .hill{ background:var(--hill1); }
-  .hill.back{ background:var(--hill2); }
-  #scoreBadge, #leaderBtn, #basarimBtn{ background:var(--cam); box-shadow:0 3px 8px var(--golge); }
-  #aliveDays{ background:var(--cam-soft); }
-  #infoCard{ background:var(--cam-soft); box-shadow:0 4px 14px var(--golge); }
-  #infoCard .row + .row{ border-top:1px dashed var(--cizgi); }
-  #waterBarOuter{ background:var(--cam-soft); border-color:var(--kenar); }
-  #closeLeaderBtn, #closeBasarimBtn{ background:var(--cam-soft); color:var(--ink); }
-  #nameInput{ background:var(--cam-soft); color:var(--ink); border-color:var(--cizgi); }
-  .modalCard{ box-shadow:0 20px 44px var(--golge); }
-
-  /* başarım düğmesi (topBar) */
-  #basarimBtn{
-    border:none; border-radius:999px; padding:7px 10px;
-    font-family:'Fredoka',sans-serif; font-weight:600; font-size:.76rem;
-    color:var(--ink); cursor:pointer; white-space:nowrap; flex-shrink:0;
-    position:relative;
+  .mektup{
+    position:relative; width:100%; height:100%; cursor:pointer; isolation:isolate;
+    animation:mektupBelir .75s cubic-bezier(.2,1.4,.4,1) backwards;
+    transition:transform .2s ease; outline:none;
   }
-  #basarimBtn .yeniNokta{
-    position:absolute; top:4px; right:5px; width:8px; height:8px; border-radius:50%;
-    background:var(--gold); box-shadow:0 0 0 2px var(--cam); display:none;
+  .mektup:not(.open):hover{ transform:scale(1.05); }
+  @keyframes mektupBelir{
+    0%{ transform:scale(0) rotate(-18deg); opacity:0; }
+    100%{ transform:scale(1) rotate(0); opacity:1; }
   }
-  #basarimBtn.yeniVar .yeniNokta{ display:block; }
-  #topBarBtnGrup{ display:flex; gap:6px; flex-shrink:0; }
-
-  /* =============== BAŞARIM BİLDİRİMİ (toast) =============== */
-  #toastKatmani{
-    position:fixed; top:0; left:50%; transform:translateX(-50%);
-    z-index:9999; pointer-events:none;
-    padding-top:calc(env(safe-area-inset-top,0px) + 14px);
-    width:min(390px, calc(100vw - 22px));
-    display:flex; flex-direction:column; align-items:center; gap:9px;
+  .mArka{
+    position:absolute; inset:0; background:#cfa66f; border-radius:6px;
+    box-shadow:0 10px 18px rgba(40,30,10,.28);
   }
-  .basarimToast{
-    pointer-events:auto; position:relative; overflow:hidden; width:100%;
-    background:var(--cam);
-    backdrop-filter:blur(16px) saturate(1.3);
-    -webkit-backdrop-filter:blur(16px) saturate(1.3);
-    border:1px solid var(--kenar);
-    border-radius:22px;
-    box-shadow:0 14px 34px var(--golge), inset 0 1px 0 rgba(255,255,255,.3);
-    padding:13px 15px 15px; color:var(--ink);
-    transform:translateY(-130%); opacity:0;
-    animation:toastGir .6s cubic-bezier(.16,1.02,.3,1) forwards;
+  .mKagit{
+    position:absolute; left:10px; right:10px; bottom:8px; height:84px; z-index:2;
+    background:#fffdf6; border-radius:4px; padding:8px;
+    display:flex; align-items:center; justify-content:center; text-align:center;
+    font-family:'Fredoka',sans-serif; font-weight:500; font-size:.7rem; line-height:1.35; color:#3b3226;
+    box-shadow:0 1px 5px rgba(0,0,0,.18);
+    transform-origin:center bottom;
+    transition:transform .8s cubic-bezier(.3,1,.4,1), z-index 0s;
   }
-  .basarimToast.kapaniyor{ animation:toastCik .48s cubic-bezier(.4,0,.75,.2) forwards; }
-  @keyframes toastGir{
-    0%{ transform:translateY(-130%) scale(.94); opacity:0; }
-    62%{ transform:translateY(5px) scale(1.01); opacity:1; }
-    100%{ transform:translateY(0) scale(1); opacity:1; }
+  .mOn{
+    position:absolute; inset:0; z-index:3; border-radius:6px;
+    background:linear-gradient(135deg,#efd7aa,#dcbb86);
+    clip-path:polygon(0 0,50% 58%,100% 0,100% 100%,0 100%);
   }
-  @keyframes toastCik{
-    0%{ transform:translateY(0) scale(1); opacity:1; }
-    100%{ transform:translateY(-118%) scale(.95); opacity:0; }
+  .mKapak{
+    position:absolute; left:0; top:0; width:100%; height:58px; z-index:4;
+    background:linear-gradient(180deg,#e7c896,#d2ac74);
+    clip-path:polygon(0 0,100% 0,50% 100%);
+    transform-origin:top center;
+    transform:perspective(600px) rotateX(0deg);
+    transition:transform .6s ease, z-index 0s;
   }
-  .basarimToast .ustSatir{
-    display:flex; align-items:center; gap:9px;
-    padding-bottom:10px; border-bottom:1px solid var(--cizgi);
+  .mMuhur{
+    position:absolute; left:50%; top:46px; width:24px; height:24px; margin-left:-12px; z-index:5;
+    border-radius:50%; background:radial-gradient(circle at 35% 30%,#ea5a4c,#a02a1f);
+    box-shadow:0 2px 4px rgba(0,0,0,.3); transition:opacity .3s ease;
+    display:grid; place-items:center; font-size:.7rem; color:#ffd9d4; line-height:1;
   }
-  .basarimToast .kupa{
-    width:29px; height:29px; flex:0 0 29px; border-radius:50%;
-    background:linear-gradient(145deg,#7fd1a4,#3f8a5b);
-    box-shadow:0 3px 10px rgba(63,138,91,.4), inset 0 1px 0 rgba(255,255,255,.5);
-    display:grid; place-items:center; font-size:.9rem; line-height:1;
-    animation:kupaZipla .8s cubic-bezier(.3,1.4,.5,1) .12s both;
+  .mektup.open .mKapak{ transform:perspective(600px) rotateX(180deg); z-index:1; transition:transform .6s ease, z-index 0s .3s; }
+  .mektup.open .mMuhur{ opacity:0; }
+  .mektup.open .mKagit{
+    transform:translateY(-88px); z-index:6;
+    transition:transform .7s cubic-bezier(.3,1,.4,1), z-index 0s .4s; /* katman geçişi yükselişin ortasında, çakışma yokken */
   }
-  @keyframes kupaZipla{
-    0%{ transform:scale(.3) rotate(-25deg); }
-    70%{ transform:scale(1.12) rotate(6deg); }
-    100%{ transform:scale(1) rotate(0); }
+  .mektup.open.out .mKagit{
+    transform:translateY(-88px) scale(1.95);
+    transition:transform .8s cubic-bezier(.3,1,.4,1), z-index 0s;
   }
-  .basarimToast .ustYazi{
-    font-family:'Fredoka',sans-serif; font-weight:600; font-size:.82rem;
-    color:var(--leaf-deep); flex:1;
-  }
-  .basarimToast .kapat{
-    border:none; background:transparent; cursor:pointer; color:var(--ink-soft);
-    font-size:.95rem; line-height:1; padding:2px 4px; border-radius:8px; opacity:.55;
-  }
-  .basarimToast .kapat:hover{ opacity:1; }
-  .basarimToast .govde{ display:flex; align-items:center; gap:12px; padding:11px 2px 8px; }
-  .basarimToast .bEmoji{
-    font-size:1.95rem; line-height:1; flex:0 0 auto;
-    filter:drop-shadow(0 4px 8px rgba(30,60,40,.2));
-    animation:emojiBelir .7s cubic-bezier(.2,1.3,.4,1) .2s both;
-  }
-  @keyframes emojiBelir{
-    0%{ transform:scale(.4) translateY(6px); opacity:0; }
-    100%{ transform:scale(1) translateY(0); opacity:1; }
-  }
-  .basarimToast .bIsim{ font-family:'Fredoka',sans-serif; font-weight:600; font-size:1.02rem; line-height:1.25; }
-  .basarimToast .bKisi{ font-size:.8rem; color:var(--ink-soft); padding-left:2px; }
-  .basarimToast .bKisi b{ color:var(--ink); font-weight:700; }
-  .basarimToast .sure{
-    position:absolute; left:0; bottom:0; height:3px; width:100%; transform-origin:left center;
-    background:linear-gradient(90deg,#8fc79a,#3f8a5b);
-    animation:sureAk 4s linear forwards;
-  }
-  @keyframes sureAk{ from{ transform:scaleX(1); } to{ transform:scaleX(0); } }
-  .basarimToast .parilti{
-    position:absolute; top:0; left:-60%; width:45%; height:100%; pointer-events:none;
-    background:linear-gradient(100deg,transparent,rgba(255,255,255,.5),transparent);
-    animation:parildaKay 1.5s ease .3s 1;
-  }
-  @keyframes parildaKay{ to{ left:120%; } }
-
-  /* =============== BAŞARIM MODALI =============== */
-  #basarimOzet{
-    display:flex; align-items:center; gap:10px;
-    margin:2px 0 12px; text-align:left;
-  }
-  #basarimOzet .sayi{
-    font-family:'Fredoka',sans-serif; font-weight:600; font-size:.9rem;
-    color:var(--leaf-deep); white-space:nowrap;
-  }
-  #basarimCubuk{
-    flex:1; height:8px; border-radius:999px; overflow:hidden;
-    background:var(--cizgi);
-  }
-  #basarimCubukDolu{
-    height:100%; width:0%; border-radius:999px;
-    background:linear-gradient(90deg,#8fc79a,#3f8a5b);
-    transition:width .5s cubic-bezier(.3,1,.4,1);
-  }
-  #basarimListesi{ text-align:left; display:flex; flex-direction:column; gap:7px; }
-  .basarimSatir{
-    display:flex; align-items:center; gap:11px;
-    padding:9px 11px; border-radius:14px;
-    background:rgba(63,138,91,.06);
-    border:1px solid transparent;
-    transition:background .3s ease, border-color .3s ease;
-  }
-  .basarimSatir.kazanildi{
-    background:linear-gradient(135deg, rgba(143,199,154,.22), rgba(63,138,91,.12));
-    border-color:rgba(63,138,91,.35);
-  }
-  .basarimSatir .sEmoji{
-    font-size:1.5rem; line-height:1; flex:0 0 auto; width:30px; text-align:center;
-  }
-  .basarimSatir.kilitli .sEmoji{ filter:grayscale(1); opacity:.45; }
-  .basarimSatir .sMetin{ flex:1; min-width:0; }
-  .basarimSatir .sAd{
-    font-family:'Fredoka',sans-serif; font-weight:600; font-size:.88rem; line-height:1.2;
-  }
-  .basarimSatir.kilitli .sAd{ color:var(--ink-soft); }
-  .basarimSatir .sAciklama{ font-size:.72rem; color:var(--ink-soft); margin-top:2px; line-height:1.4; }
-  .basarimSatir .sDurum{
-    flex:0 0 auto; font-size:.68rem; font-weight:700;
-    padding:4px 9px; border-radius:999px; white-space:nowrap;
-  }
-  .basarimSatir.kazanildi .sDurum{ background:var(--leaf); color:#fff; }
-  .basarimSatir.kilitli .sDurum{ background:var(--cizgi); color:var(--ink-soft); }
-  .basarimSatir.yeniAcildi{ animation:satirParla 1.4s ease 1; }
-  @keyframes satirParla{
-    0%{ transform:scale(1); box-shadow:0 0 0 0 rgba(63,138,91,.45); }
-    35%{ transform:scale(1.02); box-shadow:0 0 0 8px rgba(63,138,91,0); }
-    100%{ transform:scale(1); box-shadow:0 0 0 0 rgba(63,138,91,0); }
-  }
-
-  @media (prefers-reduced-motion:reduce){
-    .basarimToast{ animation-duration:.01ms; transform:none; opacity:1; }
-  }
-
+  .mektup.open{ cursor:default; }
+  .arayuzGizli{ visibility:hidden !important; }
 </style>
 </head>
 <body>
@@ -500,1097 +330,236 @@
   <div class="hill back"></div>
   <div class="hill"></div>
 
-  <div id="topBar">
-    <div id="scoreBadge" title="İsmini değiştirmek için tıkla">⭐ <span id="scorePuan">0</span> <span class="name" id="scoreName"></span></div>
-    <span id="topBarBtnGrup"><!-- <button id="basarimBtn" title="Başarımlar">🏅<span class="yeniNokta"></span></button> --><button id="leaderBtn">🏆 Liderlik</button></span>
-  </div>
-
   <header>
     <h1>9/F'nin Bahçesi 🌱</h1>
     <p>Hep birlikte bir bitkiyi hayatta tutuyoruz</p>
     <div id="aliveDays">🌞 Hayatta: 0 gün</div>
-    <div id="localWarning">⚠️ Firebase bağlantısı ayarlanmadı — bu bitki ve puanlar sadece bu tarayıcıda yaşıyor.</div>
   </header>
 
   <div id="plantArea">
     <div id="plantWrap">
-      <div id="plantEmoji" class="healthy">🌸</div>
+      <div id="plantEmoji">🌸</div>
       <div class="pot"></div>
     </div>
 
     <div id="waterBarOuter"><div id="waterBarFill"></div></div>
-    <div id="waterPct">%100 su seviyesi</div>
+    <div id="waterPct">%87 su seviyesi</div>
 
     <div id="statusLine">
-      <div class="title" id="statusTitle">Bahçe yükleniyor...</div>
-      <div class="sub" id="statusSub">Bir saniye sürebilir 🌱</div>
+      <div class="title">Bitki mis gibi 🌿</div>
+      <div class="sub">Her şey yolunda</div>
     </div>
   </div>
 
   <div id="infoCard">
-    <div class="row"><span class="label">En son sulayan</span><span class="value" id="lastWatererVal">—</span></div>
-    <div class="row"><span class="label">Sulama zamanı</span><span class="value" id="lastTimeVal">—</span></div>
-    <div class="row"><span class="label">Toplam sulama</span><span class="value" id="totalVal">0</span></div>
+    <div class="row"><span class="label">En son sulayan</span><span class="value">—</span></div>
+    <div class="row"><span class="label">Sulama zamanı</span><span class="value">12:00</span></div>
+    <div class="row"><span class="label">Toplam sulama</span><span class="value">0</span></div>
   </div>
 
-  <button id="waterBtn" disabled>Yükleniyor…</button>
+  <button id="waterBtn">???</button>
 </div>
 
-<!-- isim giriş modalı -->
-<div id="nameModal" class="modalOverlay hidden">
+<!-- onay modalı -->
+<div id="confirmModal" class="modalOverlay hidden">
   <div class="modalCard">
-    <div style="font-size:2.4rem;">🌱</div>
-    <h2 id="nameModalTitle">Bahçeye hoş geldin!</h2>
-    <p id="nameModalDesc">9/F Bahçesine katılmak için ismini yaz.</p>
-    <input id="nameInput" type="text" maxlength="20" placeholder="İsmin" autocomplete="off">
-    <button id="nameSubmit" class="primaryBtn">Bahçeye Gir</button>
-  </div>
-</div>
-
-<!-- liderlik tahtası modalı -->
-<div id="leaderModal" class="modalOverlay hidden">
-  <div class="modalCard">
-    <div style="font-size:2.2rem;">🏆</div>
-    <h2>Liderlik Tablosu</h2>
-    <p id="leaderNote">En çok sulama yapan ilk 10 kişi</p>
-    <div id="leaderList"></div>
-    <button id="closeLeaderBtn" class="primaryBtn">Kapat</button>
-  </div>
-</div>
-
-
-<!-- ===== EK 2/3 — yildiz katmani (tema sistemi icin, aktif kaliyor) ===== -->
-<div id="yildizlar"></div>
-
-<div id="toastKatmani" aria-live="polite"></div>
-
-<!-- Görev/başarım sistemi devre dışı bırakıldı:
-<div id="basarimModal" class="modalOverlay hidden">
-  <div class="modalCard">
-    <div style="font-size:2rem;">&#127942;</div>
-    <h2>Basarimlar</h2>
-    <p id="basarimNot">Bahcede yaptiklarin burada birikiyor.</p>
-    <div id="basarimOzet">
-      <span class="sayi" id="basarimSayac">0 / 0</span>
-      <span id="basarimCubuk"><span id="basarimCubukDolu"></span></span>
+    <p class="soru">bunu yapmak istediğine eminmisin bu işlem geri alınamaz.</p>
+    <div class="evetSatir">
+      <button class="primaryBtn evetBtn" type="button">Evet</button>
+      <button class="primaryBtn evetBtn" type="button">Evet</button>
     </div>
-    <div id="basarimListesi"></div>
-    <button id="closeBasarimBtn" class="primaryBtn">Kapat</button>
   </div>
 </div>
--->
 
 <script>
-/* =========================================================
-   AYARLAR
-   ========================================================= */
-const FULL_WATER_MS = 24 * 60 * 60 * 1000; // su seviyesinin %100'den %0'a inme süresi
-const MAX_WATER_YUZDE = 95;                 // bu yüzde ve üzerinde sulama kilitli
-const PUAN_PER_SULAMA = 10;                 // her sulamada kazanılan puan
-const NAME_KEY = "kuzenBahcesiIsim";
-const ID_KEY = "kuzenBahcesiKullaniciId";
+(function(){
+  const $ = (id) => document.getElementById(id);
+  let basladi = false;
 
-// Buraya kendi Firebase bilgilerini yapıştır (dosyanın en üstündeki kurulum notuna bak)
-const firebaseConfig = {
-  apiKey: "AIzaSyDoOORqIioevuH1IFtX7TM1Ynwd355T7Gw",
-  authDomain: "kuzenler-bahcesi.firebaseapp.com",
-  databaseURL: "https://kuzenler-bahcesi-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "kuzenler-bahcesi",
-  storageBucket: "kuzenler-bahcesi.firebasestorage.app",
-  messagingSenderId: "551894005280",
-  appId: "1:551894005280:web:11825031b3af64627dee45"
-};
-
-/* =========================================================
-   DURUM
-   ========================================================= */
-let plantRef = null, usersRef = null, leaderQuery = null;
-let localMode = false;
-let veriYuklendiMi = false; // Firebase'den (veya yerel modda) ilk veri gelene kadar true olmaz
-let currentState = { lastWateredAt: Date.now(), lastWateredBy: null, totalWaterings: 0, bornAt: null, isDead: false, deathAt: null, isPlanted: false, plantedBy: null };
-let userName = localStorage.getItem(NAME_KEY) || null;
-let userId = localStorage.getItem(ID_KEY);
-if(!userId){
-  userId = "k_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
-  localStorage.setItem(ID_KEY, userId);
-}
-let sonHesaplananYuzde = 100;
-const IYILESME_KEY = "kuzenBahcesiGirisIyilesme";
-let girisEfekti = "bekliyor";
-try{ if(localStorage.getItem(IYILESME_KEY)) girisEfekti = "bitti"; }catch(e){}
-let suYenilemeDevam = false;
-
-const el = (id) => document.getElementById(id);
-
-/* =========================================================
-   YÜZDE HESABI (her zaman TAZE hesaplanır — stale değere güvenilmez)
-   ========================================================= */
-function anlikSuYuzdesi(durum){
-  if(durum.isDead) return 0;
-  if(!durum.lastWateredAt) return 100;
-  const gecen = Date.now() - durum.lastWateredAt;
-  return Math.round(Math.max(0, 1 - gecen / FULL_WATER_MS) * 100);
-}
-
-/* =========================================================
-   FIREBASE BAĞLANTISI
-   ========================================================= */
-function baslatFirebase(){
-  try{
-    if(firebaseConfig.apiKey.includes("BURAYA")) throw new Error("config doldurulmamış");
-    firebase.initializeApp(firebaseConfig);
-    plantRef = firebase.database().ref("kuzenBahcesi/bitki");
-    usersRef = firebase.database().ref("kuzenBahcesi/kullanicilar");
-
-    plantRef.on("value", (snap) => {
-      const data = snap.val();
-      if(data){
-        currentState.lastWateredAt = data.lastWateredAt || Date.now();
-        currentState.lastWateredBy = data.lastWateredBy || null;
-        currentState.totalWaterings = data.totalWaterings || 0;
-        currentState.bornAt = data.bornAt || null;
-        currentState.isDead = !!data.isDead;
-        currentState.deathAt = data.deathAt || null;
-        // eski kayıtlarda isPlanted alanı yoktu; varsa zaten ekiliydi demektir
-        currentState.isPlanted = data.isPlanted !== undefined ? !!data.isPlanted : true;
-        currentState.plantedBy = data.plantedBy || null;
-      }
-      veriYuklendiMi = true;
-      liderlikSifirlaGerekliyse();
-      guncelleGorunum();
-    }, () => yerelModaGec());
-
-    usersRef.child(userId).on("value", (snap) => {
-      const u = snap.val();
-      el("scorePuan").textContent = u ? (u.puan||0) : 0;
-      el("scoreName").textContent = userName ? ("(" + userName + ")") : "";
-    });
-  } catch(e){
-    yerelModaGec();
-  }
-
-  // Firebase aşırı yavaş kalır/hiç yanıt vermezse sonsuza kadar "Yükleniyor" ekranında kalmasın
-  setTimeout(() => {
-    if(!veriYuklendiMi){ veriYuklendiMi = true; guncelleGorunum(); }
-  }, 8000);
-}
-
-function yerelModaGec(){
-  localMode = true;
-  el("localWarning").style.display = "block";
-  el("leaderNote").textContent = "Liderlik tablosu için Firebase bağlantısı gerekiyor. Şimdilik sadece kendi istatistiklerini görüyorsun.";
-  const kayitliBitki = JSON.parse(localStorage.getItem("kuzenBahcesiYerelBitki") || "null");
-  if(kayitliBitki) currentState = kayitliBitki;
-  const kayitliPuan = JSON.parse(localStorage.getItem("kuzenBahcesiYerelPuan") || "null") || {puan:0, sulamaSayisi:0};
-  el("scorePuan").textContent = kayitliPuan.puan;
-  el("scoreName").textContent = userName ? ("(" + userName + ")") : "";
-  veriYuklendiMi = true;
-  liderlikSifirlaGerekliyse();
-  guncelleGorunum();
-}
-
-/* =========================================================
-   LİDERLİK SIFIRLAMA — bitki ekili değilse (ve ölü değilse) sıfırla
-   ========================================================= */
-function liderlikSifirlaGerekliyse(){
-  // bitki ölüyse dokunma; ekiliyse zaten sıfırlanacak bir şey yok bu akışta
-  if(currentState.isDead) return;
-  if(currentState.isPlanted) return;
-
-  if(localMode){
-    localStorage.removeItem("kuzenBahcesiYerelPuan");
-    el("scorePuan").textContent = "0";
-    return;
-  }
-  if(usersRef) usersRef.remove();
-}
-
-function bitkiDurumunuKaydet(){
-  if(localMode){
-    localStorage.setItem("kuzenBahcesiYerelBitki", JSON.stringify(currentState));
-    guncelleGorunum();
-    return;
-  }
-  plantRef.update({
-    lastWateredAt: currentState.lastWateredAt,
-    lastWateredBy: currentState.lastWateredBy,
-    totalWaterings: currentState.totalWaterings,
-    bornAt: currentState.bornAt || firebase.database.ServerValue.TIMESTAMP,
-    isDead: currentState.isDead,
-    deathAt: currentState.deathAt,
-    isPlanted: currentState.isPlanted,
-    plantedBy: currentState.plantedBy
+  /* ---------- Buton -> onay modalı ---------- */
+  $("waterBtn").addEventListener("click", () => {
+    if(basladi) return;
+    $("confirmModal").classList.remove("hidden");
   });
-}
+  document.querySelectorAll(".evetBtn").forEach((b) => b.addEventListener("click", sureciBaslat));
 
-function kullaniciPuaniKaydet(){
-  if(localMode){
-    const kayitliPuan = JSON.parse(localStorage.getItem("kuzenBahcesiYerelPuan") || "null") || {puan:0, sulamaSayisi:0};
-    kayitliPuan.puan += PUAN_PER_SULAMA;
-    kayitliPuan.sulamaSayisi += 1;
-    kayitliPuan.isim = userName;
-    localStorage.setItem("kuzenBahcesiYerelPuan", JSON.stringify(kayitliPuan));
-    el("scorePuan").textContent = kayitliPuan.puan;
-    return;
-  }
-  usersRef.child(userId).transaction((cur) => {
-    if(!cur) cur = { isim: userName, puan: 0, sulamaSayisi: 0 };
-    cur.isim = userName;
-    cur.puan = (cur.puan || 0) + PUAN_PER_SULAMA;
-    cur.sulamaSayisi = (cur.sulamaSayisi || 0) + 1;
-    return cur;
-  });
-}
+  /* ---------- "Evet" -> olay akışı ---------- */
+  function sureciBaslat(){
+    if(basladi) return;
+    basladi = true;
 
-/* =========================================================
-   BİTKİYİ EKME (ilk kurulum) — atomik transaction ile çift ekimi engeller
-   ========================================================= */
-function bitkiyiEk(){
-  if(!userName){ modaliGoster(); return; }
-  if(!veriYuklendiMi) return; // gerçek veri gelmeden hiçbir işlem yapılamaz
-  if(currentState.isPlanted) return;
+    $("confirmModal").classList.add("hidden");
+    // düzen kaymasın diye display değil visibility ile gizliyoruz
+    $("waterBtn").style.visibility = "hidden";
+    $("waterBtn").style.pointerEvents = "none";
 
-  const simdi = Date.now();
-  const yeniBitki = {
-    isPlanted:true, plantedBy:userName, bornAt:simdi,
-    lastWateredAt: simdi - (FULL_WATER_MS / 2), // %50 su seviyesiyle doğsun
-    lastWateredBy:null, totalWaterings:0, isDead:false, deathAt:null
-  };
+    const r = $("plantWrap").getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height * 0.6;
 
-  if(localMode){
-    currentState = yeniBitki;
-    konfetiPatlat();
-    // basarimOlayKontrol("ekim");
-    bitkiDurumunuKaydet();
-    return;
+    bombaDus(cx, cy, () => patlat(cx, cy));
   }
 
-  el("waterBtn").disabled = true;
-  plantRef.transaction((cur) => {
-    if(cur && cur.isPlanted) return; // zaten ekiliyse dokunma (abort)
-    return yeniBitki;
-  }, (err, committed, snap) => {
-    if(committed){
-      const data = snap.val() || yeniBitki;
-      currentState.isPlanted = true;
-      currentState.plantedBy = data.plantedBy;
-      currentState.bornAt = data.bornAt;
-      currentState.lastWateredAt = data.lastWateredAt;
-      currentState.lastWateredBy = data.lastWateredBy || null;
-      currentState.totalWaterings = data.totalWaterings || 0;
-      currentState.isDead = false;
-      currentState.deathAt = null;
-      konfetiPatlat();
-      // basarimOlayKontrol("ekim");
+  /* saksı + çiçek + arayüz gizlenir (visibility: yerleşim kaymasın) */
+  function herseyiGizle(){
+    $("plantEmoji").style.visibility = "hidden";
+    document.querySelector(".pot").style.visibility = "hidden";
+    ["waterBarOuter","waterPct","statusLine","infoCard","aliveDays"].forEach((id) => $(id).classList.add("arayuzGizli"));
+  }
+
+  function bombaDus(cx, cy, bitince){
+    const b = document.createElement("div");
+    b.className = "bomba";
+    b.textContent = "💣";
+    document.body.appendChild(b);
+
+    const anim = b.animate([
+      { transform:`translate(${cx}px, -90px) translate(-50%,-50%) rotate(-25deg)` },
+      { transform:`translate(${cx}px, ${cy}px) translate(-50%,-50%) rotate(20deg)` }
+    ], { duration: 1100, easing: "cubic-bezier(.55,0,.95,.55)", fill: "forwards" });
+
+    anim.onfinish = () => { b.remove(); bitince(); };
+  }
+
+  function patlat(cx, cy){
+    // saksı, çiçek ve tüm arayüz PATLAMA ANINDA yok olur
+    herseyiGizle();
+
+    // ekran sarsıntısı + flaş
+    const stage = $("stage");
+    stage.classList.add("titre");
+    setTimeout(() => stage.classList.remove("titre"), 520);
+    const flas = document.createElement("div");
+    flas.className = "flas";
+    document.body.appendChild(flas);
+
+    const kutu = document.createElement("div");
+    kutu.className = "patlama";
+    kutu.style.left = cx + "px";
+    kutu.style.top = cy + "px";
+
+    const ekle = (cls, metin) => {
+      const d = document.createElement("div");
+      d.className = cls;
+      if(metin) d.textContent = metin;
+      kutu.appendChild(d);
+      return d;
+    };
+
+    ekle("ates");
+    ekle("halka");
+    ekle("patlamaEmoji", "💥");
+
+    // duman
+    for(let i = 0; i < 5; i++){
+      const d = ekle("duman");
+      d.style.setProperty("--sx", ((Math.random() - .5) * 90) + "px");
+      d.style.animationDelay = (.1 + i * .06) + "s";
     }
-    guncelleGorunum();
-  });
-}
 
-function konfetiPatlat(){
-  if(typeof confetti !== "function") return; // CDN yüklenemediyse sessizce geç
-  const renkler = ['#3f8a5b','#8fc79a','#2f86c9','#dd9c28','#ffffff'];
-  confetti({ particleCount: 90, spread: 70, startVelocity: 38, origin: { y: 0.55 }, colors: renkler });
-  setTimeout(() => confetti({ particleCount: 60, spread: 100, startVelocity: 28, origin: { y: 0.5 }, colors: renkler }), 200);
-  setTimeout(() => confetti({ particleCount: 40, spread: 130, origin: { y: 0.45 }, colors: renkler }), 400);
-}
-
-/* =========================================================
-   OTOMATİK SU YENİLEME
-   ========================================================= */
-function rastgeleSulayanIsmi(){
-  return new Promise((coz) => {
-    const yedek = userName || "Bir kuzen";
-    if(localMode || !usersRef){ coz(yedek); return; }
-    usersRef.limitToLast(50).once("value").then((snap) => {
-      const isimler = [];
-      snap.forEach((cs) => { const v = cs.val(); if(v && v.isim) isimler.push(v.isim); });
-      coz(isimler.length ? isimler[Math.floor(Math.random() * isimler.length)] : yedek);
-    }).catch(() => coz(yedek));
-  });
-}
-
-async function suSeviyesiniYenile(){
-  if(suYenilemeDevam) return;
-  suYenilemeDevam = true;
-  const isim = await rastgeleSulayanIsmi();
-
-  if(localMode){
-    currentState.lastWateredAt = Date.now();
-    currentState.lastWateredBy = isim;
-    currentState.totalWaterings = (currentState.totalWaterings || 0) + 1;
-    currentState.isDead = false;
-    currentState.deathAt = null;
-    bitkiDurumunuKaydet();
-    suYenilemeDevam = false;
-    return;
-  }
-
-  plantRef.transaction((cur) => {
-    if(!cur || !cur.isPlanted) return;
-    const yuzde = anlikSuYuzdesi({ isDead:false, lastWateredAt: cur.lastWateredAt });
-    if(!cur.isDead && yuzde > 0) return;
-    cur.lastWateredAt = Date.now();
-    cur.lastWateredBy = isim;
-    cur.totalWaterings = (cur.totalWaterings || 0) + 1;
-    cur.isDead = false;
-    cur.deathAt = null;
-    return cur;
-  }, (err, committed, snap) => {
-    if(committed){
-      const data = snap.val();
-      currentState.lastWateredAt = data.lastWateredAt;
-      currentState.lastWateredBy = data.lastWateredBy;
-      currentState.totalWaterings = data.totalWaterings || 0;
-      currentState.isDead = false;
-      currentState.deathAt = null;
+    // saksı kırıkları + yaprak/çiçek parçaları
+    const renkler = ["#a8622f","#7c4620","#c47a43","#5a3216"];
+    for(let i = 0; i < 16; i++){
+      const d = ekle("parca");
+      const aci = Math.random() * Math.PI * 2;
+      const mesafe = 70 + Math.random() * 120;
+      const boyut = 7 + Math.random() * 9;
+      d.style.width = boyut + "px";
+      d.style.height = boyut * (.6 + Math.random() * .5) + "px";
+      d.style.background = renkler[i % renkler.length];
+      d.style.setProperty("--dx", (Math.cos(aci) * mesafe) + "px");
+      d.style.setProperty("--dy", (Math.sin(aci) * mesafe * .8) + "px");
+      d.style.setProperty("--rot", ((Math.random() - .5) * 900) + "deg");
     }
-    suYenilemeDevam = false;
-    guncelleGorunum();
-  });
-}
-
-/* =========================================================
-   BİTKİ SULAMA
-   Kritik güvenlik notu: kontrol artık istemcideki (client-side) bayat
-   bir değere değil, Firebase transaction'ı sırasında SUNUCUDAKİ gerçek
-   son duruma bakıyor. Böylece art arda hızlı tıklama, birden fazla
-   sekme/cihaz açma ya da konsoldan fonksiyonu doğrudan çağırma gibi
-   yöntemlerle puan/sulama kasmak artık mümkün değil.
-   ========================================================= */
-function bitkiyiSula(){
-  if(!userName){ modaliGoster(); return; }
-  if(!veriYuklendiMi) return;
-  if(!currentState.isPlanted) return;
-  // sonSulamaOncesiYuzde = anlikSuYuzdesi(currentState); // görev/başarım sistemi devre dışı
-
-  if(localMode){
-    // yerel modda tek kullanıcı olduğu için basit taze kontrol yeterli
-    if(anlikSuYuzdesi(currentState) >= MAX_WATER_YUZDE) return;
-    currentState.lastWateredAt = Date.now();
-    currentState.lastWateredBy = userName;
-    currentState.totalWaterings = (currentState.totalWaterings || 0) + 1;
-    if(!currentState.bornAt) currentState.bornAt = Date.now();
-    damlaEfekti();
-    bitkiDurumunuKaydet();
-    kullaniciPuaniKaydet();
-    // basarimOlayKontrol("sulama");
-    guncelleGorunum();
-    return;
-  }
-
-  el("waterBtn").disabled = true; // spam tıklamayı anında görsel olarak da engelle
-  plantRef.transaction((cur) => {
-    if(!cur || !cur.isPlanted) return; // abort — ekili değil
-    const yuzdeDb = anlikSuYuzdesi({ isDead:false, lastWateredAt: cur.lastWateredAt });
-    if(yuzdeDb >= MAX_WATER_YUZDE) return; // abort — DB'ye göre zaten yeterince sulu
-    cur.lastWateredAt = Date.now();
-    cur.lastWateredBy = userName;
-    cur.totalWaterings = (cur.totalWaterings || 0) + 1;
-    if(!cur.bornAt) cur.bornAt = Date.now();
-    cur.isDead = false;
-    cur.deathAt = null;
-    return cur;
-  }, (err, committed, snap) => {
-    if(committed){
-      const data = snap.val();
-      currentState.lastWateredAt = data.lastWateredAt;
-      currentState.lastWateredBy = data.lastWateredBy;
-      currentState.totalWaterings = data.totalWaterings || 0;
-      currentState.isDead = false;
-      currentState.bornAt = data.bornAt || currentState.bornAt;
-      damlaEfekti();
-      kullaniciPuaniKaydet();
-      // basarimOlayKontrol("sulama");
+    const parcalar = ["🌸","🌿","🍃","🌸"];
+    for(let i = 0; i < 8; i++){
+      const d = ekle("parca petal", parcalar[i % parcalar.length]);
+      const aci = Math.random() * Math.PI * 2;
+      const mesafe = 60 + Math.random() * 130;
+      d.style.fontSize = (1 + Math.random() * .7) + "rem";
+      d.style.setProperty("--dx", (Math.cos(aci) * mesafe) + "px");
+      d.style.setProperty("--dy", (Math.sin(aci) * mesafe * .8) + "px");
+      d.style.setProperty("--rot", ((Math.random() - .5) * 600) + "deg");
     }
-    guncelleGorunum();
-  });
-}
 
-function damlaEfekti(){
-  const wrap = el("plantWrap");
-  for(let i=0;i<5;i++){
-    const d = document.createElement("div");
-    d.className = "droplet";
-    d.textContent = "💧";
-    d.style.left = (40 + Math.random()*20) + "%";
-    d.style.top = (Math.random()*10) + "px";
-    d.style.animationDelay = (i*0.08)+"s";
-    wrap.appendChild(d);
-    setTimeout(()=>d.remove(), 1100);
-  }
-}
+    document.body.appendChild(kutu);
 
-/* =========================================================
-   BİLDİRİM (toast)
-   ========================================================= */
-function bildirimGoster(mesaj, emoji, sureMs){
-  const katman = el("toastKatmani");
-  if(!katman) return;
-  sureMs = sureMs || 5000;
-  while(katman.children.length >= 3){ katman.removeChild(katman.firstElementChild); }
-
-  const kutu = document.createElement("div");
-  kutu.className = "basarimToast";
-  kutu.setAttribute("role","status");
-  kutu.innerHTML =
-    '<span class="parilti"></span>' +
-    '<div class="ustSatir">' +
-      '<span class="kupa">🌿</span>' +
-      '<span class="ustYazi">Bahçeden haber var</span>' +
-      '<button class="kapat" type="button" aria-label="Kapat">✕</button>' +
-    '</div>' +
-    '<div class="govde"><span class="bEmoji"></span><span class="bIsim"></span></div>' +
-    '<span class="sure"></span>';
-
-  kutu.querySelector(".bEmoji").textContent = emoji || "🌸";
-  kutu.querySelector(".bIsim").textContent  = mesaj;
-  kutu.querySelector(".sure").style.animationDuration = sureMs + "ms";
-  katman.appendChild(kutu);
-
-  if(typeof confetti === "function"){
-    confetti({
-      particleCount: 45, spread: 62, startVelocity: 28, scalar: .85, ticks: 140,
-      origin: { x:.5, y:.16 },
-      colors: ["#3f8a5b","#8fc79a","#7fd1a4","#ffffff"]
-    });
-  }
-
-  let kapandi = false;
-  const kapat = () => {
-    if(kapandi) return;
-    kapandi = true;
-    clearTimeout(sayac);
-    kutu.classList.add("kapaniyor");
-    setTimeout(() => kutu.remove(), 520);
-  };
-  const sayac = setTimeout(kapat, sureMs);
-  kutu.querySelector(".kapat").addEventListener("click", kapat);
-}
-
-/* =========================================================
-   GİRİŞ EFEKTİ (kullanıcı başına bir kez)
-   ========================================================= */
-function iyilesmeEfekti(){
-  const wrap = el("plantWrap"), emoji = el("plantEmoji");
-  const cx = emoji.offsetLeft + emoji.offsetWidth / 2;
-  const cy = emoji.offsetTop + emoji.offsetHeight / 2;
-
-  const glow = document.createElement("div");
-  glow.id = "iyilesmeParilti";
-  glow.style.left = cx + "px";
-  glow.style.top = cy + "px";
-  wrap.appendChild(glow);
-
-  const isiklar = [];
-  for(let i = 0; i < 9; i++){
-    const p = document.createElement("span");
-    p.className = "iyilesmeIsik";
-    p.style.left = (cx + (Math.random() - .5) * emoji.offsetWidth * 1.1) + "px";
-    p.style.top  = (cy + (Math.random() - .1) * emoji.offsetHeight * .6) + "px";
-    p.style.animationDelay = (Math.random() * .6) + "s";
-    wrap.appendChild(p);
-    isiklar.push(p);
-  }
-  setTimeout(() => { glow.remove(); isiklar.forEach((p) => p.remove()); }, 2800);
-}
-
-/* =========================================================
-   GÖRÜNÜMÜ HESAPLA VE GÜNCELLE
-   ========================================================= */
-function guncelleGorunum(){
-  const emoji = el("plantEmoji");
-  const title = el("statusTitle");
-  const sub = el("statusSub");
-  const btn = el("waterBtn");
-  const bar = el("waterBarFill");
-
-  // --- Firebase'den (veya yerel depodan) ilk veri gelene kadar "yükleniyor" ekranı ---
-  // Bu, sayfa ilk açıldığında bitkinin bir an için "ekili değil" gibi görünüp
-  // hemen ardından eski haline dönmesi hatasını engeller.
-  if(!veriYuklendiMi){
-    emoji.style.display = "none";
-    el("waterBarOuter").style.display = "none";
-    el("waterPct").style.display = "none";
-    el("infoCard").style.display = "none";
-    title.textContent = "Bahçe yükleniyor...";
-    title.style.color = "var(--ink)";
-    sub.textContent = "Bir saniye sürebilir 🌱";
-    btn.disabled = true;
-    btn.textContent = "Yükleniyor…";
-    el("aliveDays").textContent = "🌱 Yükleniyor…";
-    return;
-  }
-
-  emoji.classList.remove("healthy","thirsty","critical","dead");
-  btn.classList.remove("deadBtn");
-
-  // --- henüz bir bitki ekilmemiş: boş saksı + "Bitkiyi Ek" butonu ---
-  if(!currentState.isPlanted){
-    emoji.style.display = "none";
-    el("waterBarOuter").style.display = "none";
-    el("waterPct").style.display = "none";
-    el("infoCard").style.display = "none";
-    title.textContent = "Saksı boş duruyor";
-    title.style.color = "var(--ink)";
-    sub.textContent = "İlk bitkiyi eken sen ol!";
-    btn.disabled = false;
-    btn.textContent = "Bitkiyi Ek 🌱";
-    el("aliveDays").textContent = "🌱 Henüz ekilmedi";
-    return;
-  }
-  emoji.style.display = "";
-  el("waterBarOuter").style.display = "";
-  el("waterPct").style.display = "";
-  el("infoCard").style.display = "";
-
-  if(girisEfekti === "bekliyor" && userName){
-    girisEfekti = "olu";
+    // patlama efekti ~1.5 sn sonra kaybolur, ardından mektup belirir
     setTimeout(() => {
-      girisEfekti = "bitti";
-      try{ localStorage.setItem(IYILESME_KEY, "1"); }catch(e){}
-      guncelleGorunum();
-      iyilesmeEfekti();
-      bildirimGoster("Çiçek, bir bitki sever (Eray) tarafından iyileştirildi.", "🌸", 5000);
-    }, 1000);
+      kutu.remove();
+      flas.remove();
+      mektupGoster(true);
+    }, 1500);
   }
 
-  if(girisEfekti === "olu"){
-    sonHesaplananYuzde = 0;
-    el("waterBarFill").style.width = "0%";
-    el("waterPct").textContent = "%0 su seviyesi";
-    bar.style.background = "linear-gradient(90deg, var(--danger), #6e6e6e)";
-    emoji.textContent = "💀";
-    emoji.classList.add("dead");
-    title.textContent = "Bitki Öldü! 💀";
-    title.style.color = "var(--danger)";
-    sub.textContent = "Çiçek sonsuza dek gitti...";
-    btn.disabled = true;
-    btn.classList.add("deadBtn");
-    btn.textContent = "Bitki Öldü 💀";
-  } else {
-    const yuzde = anlikSuYuzdesi(currentState);
-    sonHesaplananYuzde = yuzde;
-
-    if(yuzde <= 0) suSeviyesiniYenile();
-
-    bar.style.width = yuzde + "%";
-    el("waterPct").textContent = "%" + yuzde + " su seviyesi";
-
-    if(yuzde >= MAX_WATER_YUZDE){
-      emoji.textContent = "🌸";
-      emoji.classList.add("healthy");
-      bar.style.background = "linear-gradient(90deg, var(--water), #4fb0e0)";
-      title.textContent = "Bitki mis gibi 🌿";
-      title.style.color = "var(--leaf-deep)";
-      sub.textContent = "Su seviyesi yeterli, şimdilik sulamaya gerek yok";
-      btn.disabled = true;
-      btn.textContent = "Su Seviyesi Yeterli 🌿";
-    } else if(yuzde > 50){
-      emoji.textContent = "🌸";
-      emoji.classList.add("healthy");
-      bar.style.background = "linear-gradient(90deg, var(--water), #4fb0e0)";
-      title.textContent = "Bitki mis gibi 🌿";
-      title.style.color = "var(--leaf-deep)";
-      sub.textContent = "Her şey yolunda";
-      btn.disabled = false;
-      btn.textContent = "Bitkiyi Sula 💧";
-    } else if(yuzde > 20){
-      emoji.textContent = "🌿";
-      emoji.classList.add("thirsty");
-      bar.style.background = "linear-gradient(90deg, var(--amber), #e9c15a)";
-      title.textContent = "Bitki susadı";
-      title.style.color = "var(--ink)";
-      sub.textContent = "Bir sulama iyi gelir";
-      btn.disabled = false;
-      btn.textContent = "Bitkiyi Sula 💧";
-    } else {
-      emoji.textContent = "🥀";
-      emoji.classList.add("critical");
-      bar.style.background = "linear-gradient(90deg, var(--danger), var(--amber))";
-      title.textContent = "Bitki can çekişiyor!";
-      title.style.color = "var(--danger)";
-      sub.textContent = "Acil su lazım";
-      btn.disabled = false;
-      btn.textContent = "Bitkiyi Sula 💧";
-    }
+  /* ---------- Mektup ---------- */
+  const KAYIT_ANAHTARI = "bahceMektupAcildi";
+  function kayitliMi(){
+    try{ return localStorage.getItem(KAYIT_ANAHTARI) === "1"; }catch(e){ return false; }
+  }
+  function kaydet(){
+    try{ localStorage.setItem(KAYIT_ANAHTARI, "1"); }catch(e){}
   }
 
-  // hayatta kalınan gün sayısı
-  if(currentState.bornAt){
-    const gunSayisi = Math.floor((Date.now() - currentState.bornAt) / (24*60*60*1000));
-    el("aliveDays").textContent = "🌞 Hayatta: " + gunSayisi + " gün";
-  } else {
-    el("aliveDays").textContent = "🌞 Hayatta: 0 gün";
-  }
+  function mektupGoster(animasyonlu){
+    const kap = document.createElement("div");
+    kap.className = "mektupKap" + (animasyonlu ? "" : " animYok");
+    kap.innerHTML =
+      '<div class="mektupOlcek">' +
+        '<div class="mektup" role="button" tabindex="0" aria-label="Mektubu aç">' +
+          '<div class="mArka"></div>' +
+          '<div class="mKagit"><span></span></div>' +
+          '<div class="mOn"></div>' +
+          '<div class="mKapak"></div>' +
+          '<div class="mMuhur">♥</div>' +
+        '</div>' +
+      '</div>';
+    kap.querySelector(".mKagit span").textContent = "Oyunumu oynadığın için teşekkürler.";
 
-  el("lastWatererVal").textContent = currentState.lastWateredBy || "—";
-  el("lastTimeVal").textContent = currentState.lastWateredAt
-    ? new Date(currentState.lastWateredAt).toLocaleTimeString("tr-TR", {hour:"2-digit",minute:"2-digit"})
-    : "—";
-  el("totalVal").textContent = currentState.totalWaterings || 0;
-}
+    // konum + ekrana göre ölçek: açık kâğıt (~253px * ölçek geniş, ~262px * ölçek yüksek) taşmasın
+    const konumla = () => {
+      const r = $("plantWrap").getBoundingClientRect();
+      const altY = r.bottom - r.height * 0.08;                 // zarfın alt kenarı
+      const s = Math.max(.55, Math.min(
+        1.4,                                                   // masaüstü üst sınırı
+        (window.innerWidth * 0.92) / 253,                      // genişlik
+        (altY - 12) / 262                                      // üstten taşma
+      ));
+      kap.style.setProperty("--s", s.toFixed(3));
+      kap.style.left = (r.left + r.width / 2) + "px";
+      kap.style.top  = (altY - 100) + "px";
+    };
+    konumla();
+    window.addEventListener("resize", konumla);
+    window.addEventListener("load", konumla);
+    if(document.fonts && document.fonts.ready) document.fonts.ready.then(konumla);
+    document.body.appendChild(kap); // en üst katman
 
-/* =========================================================
-   İSİM MODALI
-   ========================================================= */
-function modaliGoster(duzenlemeMi){
-  if(duzenlemeMi && userName){
-    el("nameModalTitle").textContent = "İsmini Değiştir";
-    el("nameModalDesc").textContent = "Yeni ismini yaz ve kaydet.";
-    el("nameInput").value = userName;
-    el("nameSubmit").textContent = "Kaydet";
-  } else {
-    el("nameModalTitle").textContent = "Bahçeye hoş geldin!";
-    el("nameModalDesc").textContent = "9/F Bahçesine katılmak için ismini yaz.";
-    el("nameInput").value = "";
-    el("nameSubmit").textContent = "Bahçeye Gir";
-  }
-  el("nameModal").classList.remove("hidden");
-  el("nameInput").focus();
-  el("nameInput").select();
-}
-function modaliGizle(){ el("nameModal").classList.add("hidden"); }
-function isimKaydet(){
-  const val = el("nameInput").value.trim();
-  if(!val) return;
-  const yeniIsim = val.slice(0,20);
-
-  // aynı isim (büyük/küçük harf farketmez) tekrar girilirse kayıt yapılmadan modal kapanır
-  if(userName && yeniIsim.toLowerCase() === userName.toLowerCase()){
-    modaliGizle();
-    return;
-  }
-
-  userName = yeniIsim;
-  localStorage.setItem(NAME_KEY, userName);
-  modaliGizle();
-  el("scoreName").textContent = "(" + userName + ")";
-
-  if(localMode){
-    const kayitliPuan = JSON.parse(localStorage.getItem("kuzenBahcesiYerelPuan") || "null") || {puan:0, sulamaSayisi:0};
-    kayitliPuan.isim = userName;
-    localStorage.setItem("kuzenBahcesiYerelPuan", JSON.stringify(kayitliPuan));
-  } else if(usersRef){
-    // kimlik id'si Firebase'de yoksa oluşturulur, varsa sadece ismi güncellenir
-    usersRef.child(userId).transaction((cur) => {
-      if(!cur) cur = { isim: userName, puan: 0, sulamaSayisi: 0 };
-      cur.isim = userName;
-      return cur;
+    const mektup = kap.querySelector(".mektup");
+    let acildi = false;
+    const ac = () => {
+      if(acildi) return;
+      acildi = true;
+      kaydet();                                                // açıldığı localStorage'a yazılır
+      kap.classList.add("acik");
+      mektup.classList.add("open");                            // kapak açılır, kâğıt yükselir
+      setTimeout(() => mektup.classList.add("out"), 650);      // kâğıt büyür
+    };
+    mektup.addEventListener("click", ac);
+    mektup.addEventListener("keydown", (e) => {
+      if(e.key === "Enter" || e.key === " "){ e.preventDefault(); ac(); }
     });
   }
 
-  guncelleGorunum();
-}
-
-/* =========================================================
-   LİDERLİK TABLOSU
-   ========================================================= */
-function liderlikGoster(){
-  el("leaderModal").classList.remove("hidden");
-  const liste = el("leaderList");
-
-  if(localMode){
-    const kayitliPuan = JSON.parse(localStorage.getItem("kuzenBahcesiYerelPuan") || "null") || {puan:0, sulamaSayisi:0};
-    liste.innerHTML = `<div class="leaderRow"><span class="rank">1</span><span class="lname">${userName || "Sen"}</span><span class="lpuan">${kayitliPuan.puan} p</span><span class="lsayi">(${kayitliPuan.sulamaSayisi} sulama)</span></div>`;
-    return;
+  /* ---------- Açılışta: kayıt varsa animasyonsuz, doğrudan patlama sonrası hal ---------- */
+  if(kayitliMi()){
+    basladi = true;
+    $("waterBtn").style.visibility = "hidden";
+    $("waterBtn").style.pointerEvents = "none";
+    herseyiGizle();
+    mektupGoster(false);
   }
-
-  leaderQuery = usersRef.orderByChild("puan").limitToLast(10);
-  leaderQuery.on("value", (snap) => {
-    const kayitlar = [];
-    snap.forEach((cs) => { kayitlar.push(cs.val()); });
-    kayitlar.reverse(); // en yüksek puan en üstte
-    if(kayitlar.length === 0){
-      liste.innerHTML = `<p style="text-align:center;color:var(--ink-soft);font-size:.8rem;">Henüz kimse sulamamış, ilk sen ol!</p>`;
-      return;
-    }
-    liste.innerHTML = kayitlar.map((k,i) => `
-      <div class="leaderRow">
-        <span class="rank">${i+1}</span>
-        <span class="lname">${(k.isim||"Bilinmeyen")}</span>
-        <span class="lpuan">${k.puan||0} p</span>
-        <span class="lsayi">(${k.sulamaSayisi||0} sulama)</span>
-      </div>`).join("");
-  });
-}
-function liderlikGizle(){
-  el("leaderModal").classList.add("hidden");
-  if(leaderQuery){ leaderQuery.off(); leaderQuery = null; }
-}
-
-/* =========================================================
-   BAŞLANGIÇ
-   ========================================================= */
-function anaButonTiklandi(){
-  if(!currentState.isPlanted){ bitkiyiEk(); }
-  else { bitkiyiSula(); }
-}
-
-el("waterBtn").addEventListener("click", anaButonTiklandi);
-el("nameSubmit").addEventListener("click", isimKaydet);
-el("nameInput").addEventListener("keydown", (e)=>{ if(e.key === "Enter") isimKaydet(); });
-el("leaderBtn").addEventListener("click", liderlikGoster);
-el("closeLeaderBtn").addEventListener("click", liderlikGizle);
-el("scoreBadge").addEventListener("click", () => modaliGoster(true));
-
-if(!userName){ modaliGoster(); } else { el("scoreName").textContent = "(" + userName + ")"; }
-
-baslatFirebase();
-setInterval(guncelleGorunum, 1000);
-
-/* =========================================================
-   EK 3/3 — DİNAMİK TEMA + BAŞARIM SİSTEMİ
-   ========================================================= */
-
-/* ---------------- Tema ayarları ---------------- */
-const VARSAYILAN_KONUM = { lat: 41.0082, lon: 28.9784, ad: "İstanbul" };
-const KONUM_IZNI_ISTE  = false;         // konum izni istenmiyor, her zaman İstanbul kullanılır
-const ALACAKARANLIK_DK = 55;            // gün batımı temasının süresi (45-60 dk)
-const YEDEK_DOGUS      = 6 * 60 + 30;   // API yoksa 06:30
-const YEDEK_BATIS      = 18 * 60 + 30;  // API yoksa 18:30 (-> 19:25'e kadar gün batımı)
-
-const PALET = {
-  sabah: {
-    skyTop:"#fdeedf", skyMid:"#e9f4ee", skyBot:"#dcf0f8",
-    aura:"#ffd7a8", auraA:.55, hill1:"#a7d3ae", hill2:"#d6ebd8",
-    ink:"#2a3a30", inkSoft:"#5d7168", paper:"#fffaf3", leafDeep:"#2f6b45",
-    cam:"#ffffff", camA:.82, camSoft:"#ffffff", camSoftA:.70,
-    kenar:"#ffffff", kenarA:.85, golge:"#1e3c28", golgeA:.14,
-    cizgi:"#3c5046", cizgiA:.18, yildiz:0
-  },
-  gunduz: {
-    skyTop:"#dff3ea", skyMid:"#cfe9f7", skyBot:"#eaf6f0",
-    aura:"#a8dcc0", auraA:.5, hill1:"#8fc79a", hill2:"#c9e6cf",
-    ink:"#20302a", inkSoft:"#4d6058", paper:"#fbfaf6", leafDeep:"#2f6b45",
-    cam:"#ffffff", camA:.85, camSoft:"#ffffff", camSoftA:.72,
-    kenar:"#ffffff", kenarA:.9, golge:"#1e3c28", golgeA:.16,
-    cizgi:"#3c5046", cizgiA:.18, yildiz:0
-  },
-  gunbatimi: {
-    skyTop:"#ffb27a", skyMid:"#f2749b", skyBot:"#7b5ea7",
-    aura:"#ffd9a0", auraA:.6, hill1:"#c07d84", hill2:"#dda389",
-    ink:"#3a1f33", inkSoft:"#6d4a5e", paper:"#fff3ea", leafDeep:"#7a3355",
-    cam:"#fff3ea", camA:.72, camSoft:"#fff3ea", camSoftA:.58,
-    kenar:"#ffffff", kenarA:.55, golge:"#4a1f38", golgeA:.28,
-    cizgi:"#6b3b52", cizgiA:.25, yildiz:.12
-  },
-  aksam: {
-    skyTop:"#3d3566", skyMid:"#2a2a4d", skyBot:"#1d2138",
-    aura:"#6b5a9e", auraA:.45, hill1:"#3a4a63", hill2:"#2c3850",
-    ink:"#eef1f8", inkSoft:"#b6bfd4", paper:"#262c47", leafDeep:"#9fe0bd",
-    cam:"#2b3050", camA:.62, camSoft:"#2b3050", camSoftA:.48,
-    kenar:"#ffffff", kenarA:.16, golge:"#080b18", golgeA:.45,
-    cizgi:"#ffffff", cizgiA:.16, yildiz:.6
-  },
-  gece: {
-    skyTop:"#0a0f1e", skyMid:"#101833", skyBot:"#161d3a",
-    aura:"#26335c", auraA:.5, hill1:"#1c2a45", hill2:"#16203a",
-    ink:"#e9eef8", inkSoft:"#9fb0c9", paper:"#171f38", leafDeep:"#8ddcb0",
-    cam:"#141c33", camA:.68, camSoft:"#141c33", camSoftA:.52,
-    kenar:"#ffffff", kenarA:.12, golge:"#000000", golgeA:.5,
-    cizgi:"#ffffff", cizgiA:.13, yildiz:1
-  }
-};
-
-const temaDurum = { dogus: YEDEK_DOGUS, batis: YEDEK_BATIS };
-
-function hexToRgb(h){
-  h = String(h).replace("#","");
-  if(h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
-  return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
-}
-function rgbToHex(r,g,b){
-  const p = (n) => Math.round(Math.max(0, Math.min(255, n))).toString(16).padStart(2,"0");
-  return "#" + p(r) + p(g) + p(b);
-}
-function renkKaristir(a,b,t){
-  const A = hexToRgb(a), B = hexToRgb(b);
-  return rgbToHex(A[0]+(B[0]-A[0])*t, A[1]+(B[1]-A[1])*t, A[2]+(B[2]-A[2])*t);
-}
-function rgbaKaristir(a,aA,b,bA,t){
-  const c = hexToRgb(renkKaristir(a,b,t));
-  return "rgba(" + c[0] + "," + c[1] + "," + c[2] + "," + (aA + (bA-aA)*t).toFixed(3) + ")";
-}
-function sayiKaristir(a,b,t){ return a + (b-a)*t; }
-function kisitla(v,min,max){ return Math.max(min, Math.min(max, v)); }
-function suAnkiDakika(){
-  const t = new Date();
-  return t.getHours()*60 + t.getMinutes() + t.getSeconds()/60;
-}
-function isoSaatiDakikaya(metin){
-  const m = String(metin).match(/T(\d{2}):(\d{2})/);
-  if(!m) throw new Error("Saat okunamadi: " + metin);
-  return parseInt(m[1],10)*60 + parseInt(m[2],10);
-}
-
-function paletiUygula(a,b,t){
-  t = kisitla(t,0,1);
-  const k = document.documentElement.style;
-  k.setProperty("--sky-top",    renkKaristir(a.skyTop, b.skyTop, t));
-  k.setProperty("--sky-mid",    renkKaristir(a.skyMid, b.skyMid, t));
-  k.setProperty("--sky-bottom", renkKaristir(a.skyBot, b.skyBot, t));
-  k.setProperty("--aura",       rgbaKaristir(a.aura, a.auraA, b.aura, b.auraA, t));
-  k.setProperty("--hill1",      renkKaristir(a.hill1, b.hill1, t));
-  k.setProperty("--hill2",      renkKaristir(a.hill2, b.hill2, t));
-  k.setProperty("--ink",        renkKaristir(a.ink, b.ink, t));
-  k.setProperty("--ink-soft",   renkKaristir(a.inkSoft, b.inkSoft, t));
-  k.setProperty("--paper",      renkKaristir(a.paper, b.paper, t));
-  k.setProperty("--leaf-deep",  renkKaristir(a.leafDeep, b.leafDeep, t));
-  k.setProperty("--cam",        rgbaKaristir(a.cam, a.camA, b.cam, b.camA, t));
-  k.setProperty("--cam-soft",   rgbaKaristir(a.camSoft, a.camSoftA, b.camSoft, b.camSoftA, t));
-  k.setProperty("--kenar",      rgbaKaristir(a.kenar, a.kenarA, b.kenar, b.kenarA, t));
-  k.setProperty("--golge",      rgbaKaristir(a.golge, a.golgeA, b.golge, b.golgeA, t));
-  k.setProperty("--cizgi",      rgbaKaristir(a.cizgi, a.cizgiA, b.cizgi, b.cizgiA, t));
-  k.setProperty("--yildiz",     sayiKaristir(a.yildiz, b.yildiz, t).toFixed(3));
-}
-
-/* Saat -> tema
-   00:00-06:00            Gece
-   06:00-(dogus+60)       Sabah  (kademeli olarak gunduze acilir)
-   (dogus+60)-batis       Gunduz
-   batis-(batis+55dk)     Gun batimi (ikinci yarisinda aksama koyulasir)
-   (batis+55dk)-24:00     Aksam -> Gece (kademeli koyulasma)          */
-function temayiHesapla(dk){
-  const batis = temaDurum.batis;
-  const gbBitis = Math.min(batis + ALACAKARANLIK_DK, 1439.9);
-  const sabahBitis = kisitla(temaDurum.dogus + 60, 361, Math.max(362, batis - 1));
-
-  if(dk < 360)        return { a:PALET.gece,   b:PALET.gece,   t:0 };
-  if(dk < sabahBitis) return { a:PALET.sabah,  b:PALET.gunduz, t:(dk-360)/Math.max(1, sabahBitis-360) };
-  if(dk < batis)      return { a:PALET.gunduz, b:PALET.gunduz, t:0 };
-  if(dk < gbBitis){
-    const ham = (dk - batis) / Math.max(1, gbBitis - batis);
-    return { a:PALET.gunbatimi, b:PALET.aksam, t:kisitla((ham - .45)/.55, 0, 1) };
-  }
-  return { a:PALET.aksam, b:PALET.gece, t:(dk - gbBitis) / Math.max(1, 1440 - gbBitis) };
-}
-
-function temayiGuncelle(){
-  const sonuc = temayiHesapla(suAnkiDakika());
-  paletiUygula(sonuc.a, sonuc.b, sonuc.t);
-}
-
-/* ---------------- Gün doğumu / batımı (API key gerekmez) ----------------
-   Konum izni artık istenmiyor; konum her zaman İstanbul'a sabit. */
-function konumuAl(){
-  return Promise.resolve(VARSAYILAN_KONUM);
-}
-
-async function gunesSaatleriniCek(){
-  try{
-    const konum = await konumuAl();
-    const kontrol = new AbortController();
-    const zamanAsimi = setTimeout(() => kontrol.abort(), 7000);
-    const url = "https://api.open-meteo.com/v1/forecast"
-              + "?latitude="  + konum.lat.toFixed(4)
-              + "&longitude=" + konum.lon.toFixed(4)
-              + "&daily=sunrise,sunset&timezone=auto";
-    const cevap = await fetch(url, { signal: kontrol.signal });
-    clearTimeout(zamanAsimi);
-    if(!cevap.ok) throw new Error("HTTP " + cevap.status);
-    const veri = await cevap.json();
-    const dogus = isoSaatiDakikaya(veri.daily.sunrise[0]);
-    const batis = isoSaatiDakikaya(veri.daily.sunset[0]);
-    if(!(batis > dogus)) throw new Error("Saatler mantiksiz");
-    temaDurum.dogus = dogus;
-    temaDurum.batis = batis;
-  }catch(hata){
-    // internet yok / API yanit vermiyor / veri bozuk -> guvenli varsayilanlar
-    console.warn("Gunes saatleri alinamadi, yedek saatlere gecildi:", hata && hata.message);
-    temaDurum.dogus = YEDEK_DOGUS;
-    temaDurum.batis = YEDEK_BATIS;
-  }finally{
-    temayiGuncelle();
-  }
-}
-
-// /* =========================================================
-//    BAŞARIMLAR
-//    ========================================================= */
-// const BASARIMLAR = [
-//   { kod:"ilk_fidan",   emoji:"🌱", ad:"Toprakla Tanışma",    aciklama:"Bahçeye fidanı sen ektin." },
-//   { kod:"ilk_damla",   emoji:"💧", ad:"İlk Damla",           aciklama:"İlk kez su verdin." },
-//   { kod:"can_kurtaran",emoji:"🚑", ad:"Can Kurtaran",        aciklama:"Su seviyesi %15'in altındayken yetiştin." },
-//   { kod:"gece_kusu",   emoji:"🦉", ad:"Gece Kuşu",           aciklama:"00:00 - 05:00 arasında suladın." },
-//   { kod:"safak",       emoji:"🌅", ad:"Şafak Vakti",         aciklama:"05:00 - 07:00 arasında suladın." },
-//   { kod:"sadik",       emoji:"🌻", ad:"Sadık Bahçıvan",      aciklama:"10 kez suladın." },
-//   { kod:"usta",        emoji:"🚿", ad:"Su Ustası",           aciklama:"25 kez suladın." },
-//   { kod:"efsane",      emoji:"🏅", ad:"Bahçenin Efsanesi",   aciklama:"50 kez suladın." },
-//   { kod:"yedi_gun",    emoji:"📅", ad:"Yedi Gün Yedi Damla", aciklama:"7 farklı günde suladın." },
-//   { kod:"merakli",     emoji:"🔍", ad:"Meraklı Bahçıvan",    aciklama:"Başarım listesini açtın." }
-// ];
-// const BASARIM_YEREL_KEY = "kuzenBahcesiBasarimlar";
-// const GUN_YEREL_KEY     = "kuzenBahcesiSulamaGunleri";
-
-// let benimBasarimlarim = {};            // kod -> kazanma zamani
-// let benimKayit        = { puan:0, sulamaSayisi:0, gunler:{} };
-// let sonSulamaOncesiYuzde = 100;
-// let basarimAkisRef = null;
-// const sayfaAcilisZamani = Date.now();
-
-// function basarimBul(kod){ return BASARIMLAR.find((b) => b.kod === kod) || null; }
-// function bugunAnahtari(){
-//   const t = new Date();
-//   return t.getFullYear() + "-" + String(t.getMonth()+1).padStart(2,"0") + "-" + String(t.getDate()).padStart(2,"0");
-// }
-// function yerelBasarimlariOku(){
-//   try{ return JSON.parse(localStorage.getItem(BASARIM_YEREL_KEY) || "{}") || {}; }
-//   catch(e){ return {}; }
-// }
-// function yerelGunleriOku(){
-//   try{ return JSON.parse(localStorage.getItem(GUN_YEREL_KEY) || "{}") || {}; }
-//   catch(e){ return {}; }
-// }
-
-// /* Bir başarımı kazandır. Zaten varsa hiçbir şey yapmaz (idempotent). */
-// function basarimVer(kod){
-//   if(benimBasarimlarim[kod]) return;
-//   const b = basarimBul(kod);
-//   if(!b) return;
-
-//   const zaman = Date.now();
-//   benimBasarimlarim[kod] = zaman;
-
-//   if(localMode || !usersRef){
-//     const kayit = yerelBasarimlariOku();
-//     kayit[kod] = zaman;
-//     localStorage.setItem(BASARIM_YEREL_KEY, JSON.stringify(kayit));
-//     showAchievementToast(userName || "Sen", b.ad, b.emoji);
-//   }else{
-//     usersRef.child(userId).child("basarimlar").child(kod).set(zaman);
-//     // herkesin ekranında görünmesi için ortak akışa yaz (toast'ı akış tetikler)
-//     firebase.database().ref("kuzenBahcesi/basarimAkisi").push({
-//       kod: kod, isim: userName || "Birisi", kullaniciId: userId, zaman: zaman
-//     });
-//   }
-
-//   const btn = el("basarimBtn");
-//   if(btn && el("basarimModal").classList.contains("hidden")) btn.classList.add("yeniVar");
-//   basarimListesiniCiz(kod);
-// }
-
-// /* Sayaca bağlı başarımlar — kullanıcı kaydı her değiştiğinde çalışır */
-// function basarimSayaclariniKontrolEt(){
-//   const sayi = benimKayit.sulamaSayisi || 0;
-//   if(sayi >= 1)  basarimVer("ilk_damla");
-//   if(sayi >= 10) basarimVer("sadik");
-//   if(sayi >= 25) basarimVer("usta");
-//   if(sayi >= 50) basarimVer("efsane");
-//   const gunSayisi = Object.keys(benimKayit.gunler || {}).length;
-//   if(gunSayisi >= 7) basarimVer("yedi_gun");
-// }
-
-// /* Ana olaylara bağlı başarımlar — sulama / ekim anında çalışır */
-// function basarimOlayKontrol(olay){
-//   if(olay === "ekim"){ basarimVer("ilk_fidan"); return; }
-//   if(olay !== "sulama") return;
-
-//   const saat = new Date().getHours();
-//   if(saat < 5)      basarimVer("gece_kusu");
-//   else if(saat < 7) basarimVer("safak");
-//   if(sonSulamaOncesiYuzde <= 15) basarimVer("can_kurtaran");
-
-//   // sulama yapılan günü işaretle (7 gün başarımı için)
-//   const gun = bugunAnahtari();
-//   if(localMode || !usersRef){
-//     const gunler = yerelGunleriOku();
-//     gunler[gun] = true;
-//     localStorage.setItem(GUN_YEREL_KEY, JSON.stringify(gunler));
-//     benimKayit.gunler = gunler;
-//     benimKayit.sulamaSayisi = (JSON.parse(localStorage.getItem("kuzenBahcesiYerelPuan") || "null") || {}).sulamaSayisi || 0;
-//     basarimSayaclariniKontrolEt();
-//   }else{
-//     usersRef.child(userId).child("gunler").child(gun).set(true);
-//   }
-// }
-
-// /* Başarım listesini modal içine çiz */
-// function basarimListesiniCiz(yeniKod){
-//   const liste = el("basarimListesi");
-//   if(!liste) return;
-
-//   liste.innerHTML = BASARIMLAR.map((b) => {
-//     const kazanildi = !!benimBasarimlarim[b.kod];
-//     const yeni = (yeniKod && yeniKod === b.kod) ? " yeniAcildi" : "";
-//     return '<div class="basarimSatir ' + (kazanildi ? "kazanildi" : "kilitli") + yeni + '">' +
-//              '<span class="sEmoji">' + (kazanildi ? b.emoji : "🔒") + '</span>' +
-//              '<span class="sMetin">' +
-//                '<span class="sAd"></span>' +
-//                '<span class="sAciklama"></span>' +
-//              '</span>' +
-//              '<span class="sDurum">' + (kazanildi ? "Kazanıldı" : "Kilitli") + '</span>' +
-//            '</div>';
-//   }).join("");
-
-//   // metinleri textContent ile yaz (isimler/HTML bozulmasın)
-//   const satirlar = liste.querySelectorAll(".basarimSatir");
-//   BASARIMLAR.forEach((b, i) => {
-//     satirlar[i].querySelector(".sAd").textContent = b.ad;
-//     satirlar[i].querySelector(".sAciklama").textContent = b.aciklama;
-//   });
-
-//   const kazanilan = BASARIMLAR.filter((b) => benimBasarimlarim[b.kod]).length;
-//   el("basarimSayac").textContent = kazanilan + " / " + BASARIMLAR.length;
-//   el("basarimCubukDolu").style.width = Math.round(kazanilan / BASARIMLAR.length * 100) + "%";
-// }
-
-// function basarimlariGoster(){
-//   el("basarimModal").classList.remove("hidden");
-//   el("basarimBtn").classList.remove("yeniVar");
-//   basarimListesiniCiz();
-//   setTimeout(() => basarimVer("merakli"), 600);
-// }
-// function basarimlariGizle(){ el("basarimModal").classList.add("hidden"); }
-
-// /* Firebase dinleyicileri */
-// function basarimlariBaslat(){
-//   if(localMode || !usersRef){
-//     benimBasarimlarim = yerelBasarimlariOku();
-//     benimKayit.gunler = yerelGunleriOku();
-//     benimKayit.sulamaSayisi = (JSON.parse(localStorage.getItem("kuzenBahcesiYerelPuan") || "null") || {}).sulamaSayisi || 0;
-//     el("basarimNot").textContent = "Firebase bağlı değil — başarımların sadece bu tarayıcıda tutuluyor.";
-//     basarimListesiniCiz();
-//     return;
-//   }
-
-//   // kendi kaydım: puan, sulama sayısı, kazanılan başarımlar, sulama günleri
-//   usersRef.child(userId).on("value", (snap) => {
-//     const u = snap.val() || {};
-//     benimKayit.puan = u.puan || 0;
-//     benimKayit.sulamaSayisi = u.sulamaSayisi || 0;
-//     benimKayit.gunler = u.gunler || {};
-//     benimBasarimlarim = Object.assign({}, u.basarimlar || {}, benimBasarimlarim);
-//     basarimListesiniCiz();
-//     basarimSayaclariniKontrolEt();
-//   });
-
-//   // ortak akış: kim ne kazandıysa herkeste toast çıksın
-//   basarimAkisRef = firebase.database().ref("kuzenBahcesi/basarimAkisi").limitToLast(6);
-//   basarimAkisRef.on("child_added", (snap) => {
-//     const v = snap.val();
-//     if(!v || !v.kod) return;
-//     if(!v.zaman || v.zaman < sayfaAcilisZamani - 3000) return; // sayfa açılmadan önceki kayıtları gösterme
-//     const b = basarimBul(v.kod);
-//     if(!b) return;
-//     showAchievementToast(v.isim, b.ad, b.emoji);
-//   });
-
-//   basarimListesiniCiz();
-// }
-
-/* ---------------- Başlat ---------------- */
-// el("basarimBtn").addEventListener("click", basarimlariGoster);
-// el("closeBasarimBtn").addEventListener("click", basarimlariGizle);
-// el("basarimModal").addEventListener("click", (e) => { if(e.target.id === "basarimModal") basarimlariGizle(); });
-
-temayiGuncelle();
-gunesSaatleriniCek();
-setInterval(temayiGuncelle, 20000);
-setInterval(gunesSaatleriniCek, 6 * 60 * 60 * 1000);
-
-// basarimlariBaslat();
-// basarimListesiniCiz();
+})();
 </script>
 </body>
 </html>
